@@ -1,105 +1,31 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ExternalBlob } from "../backend";
-import type { IDCard } from "../backend.d.ts";
-import { useActor } from "./useActor";
-import { useInternetIdentity } from "./useInternetIdentity";
-
-// ─── User Profile (local storage per principal) ───────────────────
-
-export interface UserProfile {
-  name: string;
-}
-
-function profileKey(principal: string) {
-  return `myid-vault-profile:${principal}`;
-}
-
-function loadProfile(principal: string): UserProfile | null {
-  try {
-    const raw = localStorage.getItem(profileKey(principal));
-    if (!raw) return null;
-    return JSON.parse(raw) as UserProfile;
-  } catch {
-    return null;
-  }
-}
-
-function saveProfileToStorage(principal: string, profile: UserProfile): void {
-  localStorage.setItem(profileKey(principal), JSON.stringify(profile));
-}
-
-export function useGetCallerUserProfile() {
-  const { identity } = useInternetIdentity();
-  const principal = identity?.getPrincipal().toString() ?? null;
-
-  const query = useQuery<UserProfile | null>({
-    queryKey: ["currentUserProfile", principal],
-    queryFn: () => {
-      if (!principal) return null;
-      return loadProfile(principal);
-    },
-    enabled: !!principal,
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-
-  return {
-    ...query,
-    isLoading: !principal || query.isLoading,
-    isFetched: !!principal && query.isFetched,
-  };
-}
-
-export function useSaveCallerUserProfile() {
-  const { identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (profile: UserProfile) => {
-      const principal = identity?.getPrincipal().toString();
-      if (!principal) throw new Error("Not authenticated");
-      saveProfileToStorage(principal, profile);
-      return profile;
-    },
-    onSuccess: (_data, _vars) => {
-      const principal = identity?.getPrincipal().toString();
-      queryClient.invalidateQueries({
-        queryKey: ["currentUserProfile", principal],
-      });
-    },
-  });
-}
+import type { LocalIDCard } from "./useLocalIDStore";
+import { useLocalIDStore } from "./useLocalIDStore";
 
 export function useGetAllCards() {
-  const { actor, isFetching } = useActor();
-  return useQuery<IDCard[]>({
-    queryKey: ["cards"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getAllCards();
-    },
-    enabled: !!actor && !isFetching,
+  const store = useLocalIDStore();
+  return useQuery<LocalIDCard[]>({
+    queryKey: ["cards", store.username],
+    queryFn: () => store.getAllCards(),
   });
 }
 
 export function useGetCard(id: string) {
-  const { actor, isFetching } = useActor();
-  return useQuery<IDCard>({
-    queryKey: ["card", id],
-    queryFn: async () => {
-      if (!actor) throw new Error("No actor");
-      return actor.getCard(id);
-    },
-    enabled: !!actor && !isFetching && !!id,
+  const store = useLocalIDStore();
+  return useQuery<LocalIDCard | undefined>({
+    queryKey: ["card", store.username, id],
+    queryFn: () => store.getCard(id),
+    enabled: !!id,
   });
 }
 
 export function useCreateCollegeID() {
-  const { actor } = useActor();
+  const store = useLocalIDStore();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (params: {
       id: string;
-      photo: ExternalBlob;
+      photo: string;
       fullName: string;
       dateOfBirth: string;
       enrollmentNo: string;
@@ -109,19 +35,25 @@ export function useCreateCollegeID() {
       academicYear: string;
       validUntil: string;
     }) => {
-      if (!actor) throw new Error("No actor");
-      await actor.createCollegeID(
-        params.id,
-        params.photo,
-        params.fullName,
-        params.dateOfBirth,
-        params.enrollmentNo,
-        params.course,
-        params.branch,
-        params.collegeName,
-        params.academicYear,
-        params.validUntil,
-      );
+      const card: LocalIDCard = {
+        id: params.id,
+        timestamp: Date.now(),
+        cardType: {
+          __kind__: "collegeStudent",
+          collegeStudent: {
+            photo: params.photo,
+            fullName: params.fullName,
+            dateOfBirth: params.dateOfBirth,
+            enrollmentNo: params.enrollmentNo,
+            course: params.course,
+            branch: params.branch,
+            collegeName: params.collegeName,
+            academicYear: params.academicYear,
+            validUntil: params.validUntil,
+          },
+        },
+      };
+      store.saveCard(card);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
@@ -130,12 +62,12 @@ export function useCreateCollegeID() {
 }
 
 export function useCreateOtherID() {
-  const { actor } = useActor();
+  const store = useLocalIDStore();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (params: {
       id: string;
-      photo: ExternalBlob;
+      photo: string;
       fullName: string;
       idType: string;
       idNumber: string;
@@ -144,18 +76,24 @@ export function useCreateOtherID() {
       expiryDate: string;
       issuedBy: string;
     }) => {
-      if (!actor) throw new Error("No actor");
-      await actor.createOtherID(
-        params.id,
-        params.photo,
-        params.fullName,
-        params.idType,
-        params.idNumber,
-        params.dateOfBirth,
-        params.issueDate,
-        params.expiryDate,
-        params.issuedBy,
-      );
+      const card: LocalIDCard = {
+        id: params.id,
+        timestamp: Date.now(),
+        cardType: {
+          __kind__: "other",
+          other: {
+            photo: params.photo,
+            fullName: params.fullName,
+            idType: params.idType,
+            idNumber: params.idNumber,
+            dateOfBirth: params.dateOfBirth,
+            issueDate: params.issueDate,
+            expiryDate: params.expiryDate,
+            issuedBy: params.issuedBy,
+          },
+        },
+      };
+      store.saveCard(card);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
@@ -164,12 +102,11 @@ export function useCreateOtherID() {
 }
 
 export function useDeleteCard() {
-  const { actor } = useActor();
+  const store = useLocalIDStore();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!actor) throw new Error("No actor");
-      await actor.deleteCard(id);
+      store.deleteCard(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
@@ -178,16 +115,18 @@ export function useDeleteCard() {
 }
 
 export function useUpdateCard() {
-  const { actor } = useActor();
+  const store = useLocalIDStore();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (params: { id: string; card: IDCard }) => {
-      if (!actor) throw new Error("No actor");
-      await actor.updateCard(params.id, params.card);
+    mutationFn: async (params: { id: string; card: LocalIDCard }) => {
+      store.updateCard(params.id, params.card);
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["cards"] });
-      queryClient.invalidateQueries({ queryKey: ["card", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["card"] });
+      queryClient.invalidateQueries({
+        queryKey: ["card", variables.id],
+      });
     },
   });
 }

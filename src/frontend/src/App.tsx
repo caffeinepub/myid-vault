@@ -3,12 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
-import ProfileSetupModal from "./components/ProfileSetupModal";
-import { useInternetIdentity } from "./hooks/useInternetIdentity";
-import {
-  useGetCallerUserProfile,
-  useSaveCallerUserProfile,
-} from "./hooks/useQueries";
+import { usePasswordAuth } from "./hooks/usePasswordAuth";
 import AddCardPage from "./pages/AddCardPage";
 import CardViewerPage from "./pages/CardViewerPage";
 import HomePage from "./pages/HomePage";
@@ -43,48 +38,22 @@ function PageTransition({
   );
 }
 
-function AuthenticatedApp() {
+function AuthenticatedApp({
+  userName,
+  onLogout,
+}: {
+  userName: string;
+  onLogout: () => Promise<void>;
+}) {
   const [page, setPage] = useState<AppPage>({ type: "home" });
   const navigate = (p: AppPage) => setPage(p);
-
-  const { identity, clear, isInitializing } = useInternetIdentity();
   const queryClient = useQueryClient();
 
-  const {
-    data: userProfile,
-    isLoading: profileLoading,
-    isFetched,
-  } = useGetCallerUserProfile();
-
-  const saveProfile = useSaveCallerUserProfile();
-
   const handleLogout = async () => {
-    clear();
+    await onLogout();
     queryClient.clear();
     setPage({ type: "home" });
   };
-
-  const handleSaveProfile = async (name: string) => {
-    await saveProfile.mutateAsync({ name });
-  };
-
-  // Show full-screen loader while determining auth/profile state
-  if (isInitializing || (!!identity && profileLoading && !isFetched)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-primary/60" />
-          <p className="text-sm text-muted-foreground">Loading your vault...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show profile setup on first login
-  const showProfileSetup =
-    !!identity && !profileLoading && isFetched && userProfile === null;
-
-  const userName = userProfile?.name ?? "";
 
   // Derive page key for transitions
   const pageKey =
@@ -97,8 +66,6 @@ function AuthenticatedApp() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="top-center" richColors />
-
-      {showProfileSetup && <ProfileSetupModal onSave={handleSaveProfile} />}
 
       <AnimatePresence mode="wait">
         {page.type === "home" && (
@@ -131,7 +98,8 @@ function AuthenticatedApp() {
 }
 
 export default function App() {
-  const { identity, isInitializing } = useInternetIdentity();
+  const { user, isInitializing, logout, loginWithPassword, signUp } =
+    usePasswordAuth();
 
   // Show loading while restoring session
   if (isInitializing) {
@@ -139,21 +107,21 @@ export default function App() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-primary/60" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">Loading your vault...</p>
         </div>
       </div>
     );
   }
 
   // Not logged in — show login page
-  if (!identity) {
+  if (!user) {
     return (
       <>
         <Toaster position="top-center" richColors />
-        <LoginPage />
+        <LoginPage loginWithPassword={loginWithPassword} signUp={signUp} />
       </>
     );
   }
 
-  return <AuthenticatedApp />;
+  return <AuthenticatedApp userName={user.name} onLogout={logout} />;
 }

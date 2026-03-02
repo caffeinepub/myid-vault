@@ -5,8 +5,8 @@ import { LogOut, Plus, Search, User, Wallet } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import type { AppPage } from "../App";
-import type { IDCard } from "../backend.d.ts";
 import IDCardThumbnail from "../components/IDCardThumbnail";
+import type { LocalIDCard } from "../hooks/useLocalIDStore";
 import { useGetAllCards } from "../hooks/useQueries";
 
 interface HomePageProps {
@@ -235,7 +235,7 @@ export default function HomePage({
             }}
           >
             <AnimatePresence>
-              {filteredCards.map((card: IDCard) => (
+              {filteredCards.map((card: LocalIDCard) => (
                 <motion.div
                   key={card.id}
                   variants={{

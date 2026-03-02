@@ -19,7 +19,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AppPage } from "../App";
-import { ExternalBlob } from "../backend";
 import {
   useCreateCollegeID,
   useCreateOtherID,
@@ -303,7 +302,6 @@ export default function AddCardPage({
       if (existingCard.cardType.__kind__ === "collegeStudent") {
         const c = existingCard.cardType.collegeStudent;
         setCardType("collegeStudent");
-        const photoUrl = c.photo.getDirectURL();
         setCollegeForm({
           fullName: c.fullName,
           dateOfBirth: c.dateOfBirth,
@@ -314,14 +312,13 @@ export default function AddCardPage({
           academicYear: c.academicYear,
           validUntil: c.validUntil,
           photoFile: null,
-          photoPreview: photoUrl || null,
+          photoPreview: c.photo || null,
           docPhotoFile: null,
           docPhotoPreview: null,
         });
       } else if (existingCard.cardType.__kind__ === "other") {
         const o = existingCard.cardType.other;
         setCardType("other");
-        const photoUrl = o.photo.getDirectURL();
         // Map idType back to category
         let cat: IDCategory = "aadhaar";
         if (o.idType === "PAN Card") cat = "pan";
@@ -348,7 +345,7 @@ export default function AddCardPage({
           expiryDate: o.expiryDate,
           issuedBy: o.issuedBy,
           photoFile: null,
-          photoPreview: photoUrl || null,
+          photoPreview: o.photo || null,
           docPhotoFile: null,
           docPhotoPreview: null,
         });
@@ -360,6 +357,15 @@ export default function AddCardPage({
     setCardType(type);
     setStep("form");
   };
+
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 
   const handleSubmitCollege = async () => {
     const f = collegeForm;
@@ -379,17 +385,16 @@ export default function AddCardPage({
 
     setIsSubmitting(true);
     try {
-      let photoBlob: ExternalBlob;
+      let photoStr: string;
       if (f.photoFile) {
-        const bytes = new Uint8Array(await f.photoFile.arrayBuffer());
-        photoBlob = ExternalBlob.fromBytes(bytes);
+        photoStr = await fileToBase64(f.photoFile);
       } else if (
         isEdit &&
         existingCard?.cardType.__kind__ === "collegeStudent"
       ) {
-        photoBlob = existingCard.cardType.collegeStudent.photo;
+        photoStr = existingCard.cardType.collegeStudent.photo;
       } else {
-        photoBlob = ExternalBlob.fromBytes(new Uint8Array(0));
+        photoStr = "";
       }
 
       const id = editCardId ?? crypto.randomUUID();
@@ -410,7 +415,7 @@ export default function AddCardPage({
                 collegeName: f.collegeName,
                 academicYear: f.academicYear,
                 validUntil: f.validUntil,
-                photo: photoBlob,
+                photo: photoStr,
               },
             },
           },
@@ -419,7 +424,7 @@ export default function AddCardPage({
       } else {
         await createCollege.mutateAsync({
           id,
-          photo: photoBlob,
+          photo: photoStr,
           fullName: f.fullName,
           dateOfBirth: f.dateOfBirth,
           enrollmentNo: f.enrollmentNo,
@@ -450,14 +455,13 @@ export default function AddCardPage({
 
     setIsSubmitting(true);
     try {
-      let photoBlob: ExternalBlob;
+      let photoStr: string;
       if (f.photoFile) {
-        const bytes = new Uint8Array(await f.photoFile.arrayBuffer());
-        photoBlob = ExternalBlob.fromBytes(bytes);
+        photoStr = await fileToBase64(f.photoFile);
       } else if (isEdit && existingCard?.cardType.__kind__ === "other") {
-        photoBlob = existingCard.cardType.other.photo;
+        photoStr = existingCard.cardType.other.photo;
       } else {
-        photoBlob = ExternalBlob.fromBytes(new Uint8Array(0));
+        photoStr = "";
       }
 
       const { idType, idNumber, issuedBy } = buildIdTypeAndNumber(f);
@@ -479,7 +483,7 @@ export default function AddCardPage({
                 issueDate: f.issueDate,
                 expiryDate: f.expiryDate,
                 issuedBy,
-                photo: photoBlob,
+                photo: photoStr,
               },
             },
           },
@@ -488,7 +492,7 @@ export default function AddCardPage({
       } else {
         await createOther.mutateAsync({
           id,
-          photo: photoBlob,
+          photo: photoStr,
           fullName: f.fullName,
           idType,
           idNumber,

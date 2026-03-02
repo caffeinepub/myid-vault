@@ -1,9 +1,9 @@
 import { CreditCard, GraduationCap } from "lucide-react";
 import { motion } from "motion/react";
-import type { IDCard } from "../backend.d.ts";
+import type { LocalIDCard } from "../hooks/useLocalIDStore";
 
 interface IDCardThumbnailProps {
-  card: IDCard;
+  card: LocalIDCard;
   onClick: () => void;
 }
 
@@ -15,7 +15,7 @@ export default function IDCardThumbnail({
 
   if (isCollege && card.cardType.__kind__ === "collegeStudent") {
     const c = card.cardType.collegeStudent;
-    const photoUrl = c.photo.getDirectURL();
+    const photoUrl = c.photo;
 
     return (
       <motion.button
@@ -145,7 +145,7 @@ export default function IDCardThumbnail({
   // Other ID
   if (card.cardType.__kind__ !== "other") return null;
   const o = card.cardType.other;
-  const photoUrl = o.photo.getDirectURL();
+  const photoUrl = o.photo;
 
   return (
     <motion.button

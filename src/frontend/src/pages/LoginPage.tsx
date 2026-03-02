@@ -1,10 +1,119 @@
 import { Button } from "@/components/ui/button";
-import { Loader2, Shield, Wallet } from "lucide-react";
-import { motion } from "motion/react";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Eye, EyeOff, Loader2, Lock, Shield, User, Wallet } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
+import { toast } from "sonner";
 
-export default function LoginPage() {
-  const { login, isLoggingIn, isInitializing } = useInternetIdentity();
+type TabType = "login" | "signup";
+
+interface FormErrors {
+  name?: string;
+  username?: string;
+  password?: string;
+  confirmPassword?: string;
+  general?: string;
+}
+
+interface LoginPageProps {
+  loginWithPassword: (username: string, password: string) => Promise<void>;
+  signUp: (name: string, username: string, password: string) => Promise<void>;
+}
+
+export default function LoginPage({
+  loginWithPassword,
+  signUp,
+}: LoginPageProps) {
+  const [tab, setTab] = useState<TabType>("login");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [shakeError, setShakeError] = useState(false);
+
+  // Login form state
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  // Sign-up form state
+  const [signupName, setSignupName] = useState("");
+  const [signupUsername, setSignupUsername] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
+
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  const triggerShake = () => {
+    setShakeError(true);
+    setTimeout(() => setShakeError(false), 600);
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: FormErrors = {};
+    if (!loginUsername.trim()) newErrors.username = "Username is required";
+    if (!loginPassword) newErrors.password = "Password is required";
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      triggerShake();
+      return;
+    }
+    setErrors({});
+    setIsSubmitting(true);
+    try {
+      await loginWithPassword(loginUsername.trim(), loginPassword);
+      toast.success("Welcome back!");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Login failed";
+      setErrors({ general: msg });
+      triggerShake();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: FormErrors = {};
+    if (!signupName.trim()) newErrors.name = "Full name is required";
+    if (!signupUsername.trim()) newErrors.username = "Username is required";
+    else if (signupUsername.trim().length < 3)
+      newErrors.username = "Username must be at least 3 characters";
+    else if (!/^[a-zA-Z0-9_]+$/.test(signupUsername.trim()))
+      newErrors.username = "Only letters, numbers, and underscores";
+    if (!signupPassword) newErrors.password = "Password is required";
+    else if (signupPassword.length < 6)
+      newErrors.password = "Password must be at least 6 characters";
+    if (!signupConfirmPassword)
+      newErrors.confirmPassword = "Please confirm your password";
+    else if (signupPassword !== signupConfirmPassword)
+      newErrors.confirmPassword = "Passwords do not match";
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      triggerShake();
+      return;
+    }
+    setErrors({});
+    setIsSubmitting(true);
+    try {
+      await signUp(signupName.trim(), signupUsername.trim(), signupPassword);
+      toast.success(`Welcome, ${signupName.trim()}! Your vault is ready.`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Sign up failed";
+      setErrors({ general: msg });
+      triggerShake();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const switchTab = (newTab: TabType) => {
+    if (isSubmitting) return;
+    setTab(newTab);
+    setErrors({});
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-background">
@@ -24,7 +133,6 @@ export default function LoginPage() {
               "radial-gradient(ellipse, oklch(0.72 0.14 65) 0%, transparent 70%)",
           }}
         />
-        {/* Decorative grid pattern */}
         <div
           className="absolute inset-0 opacity-[0.025]"
           style={{
@@ -52,12 +160,10 @@ export default function LoginPage() {
             }}
           >
             <div
-              className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-lg"
+              className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-lg rgb-glow"
               style={{
                 background:
                   "linear-gradient(135deg, oklch(0.22 0.055 255) 0%, oklch(0.38 0.1 265) 100%)",
-                boxShadow:
-                  "0 8px 32px oklch(0.22 0.055 255 / 0.35), 0 2px 8px oklch(0.22 0.055 255 / 0.2)",
               }}
             >
               <Wallet className="w-9 h-9 text-white" />
@@ -71,7 +177,7 @@ export default function LoginPage() {
           </p>
         </motion.div>
 
-        {/* Login card — bounce entrance */}
+        {/* Auth card */}
         <motion.div
           initial={{ opacity: 0, y: 30, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -81,83 +187,429 @@ export default function LoginPage() {
             damping: 22,
             delay: 0.15,
           }}
-          className="w-full rounded-3xl border border-border bg-card p-8 rgb-glow-sm rgb-border"
+          className={`w-full rounded-3xl border border-border bg-card overflow-hidden rgb-glow-sm rgb-border ${
+            shakeError ? "animate-shake" : ""
+          }`}
           style={{
             boxShadow:
               "0 4px 6px -1px oklch(0.18 0.025 250 / 0.06), 0 16px 48px -12px oklch(0.18 0.025 250 / 0.12)",
           }}
         >
-          {/* Security badge */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.4, duration: 0.3 }}
-            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-6 text-xs font-semibold"
-            style={{
-              background: "oklch(0.22 0.055 255 / 0.08)",
-              color: "oklch(0.35 0.08 255)",
-              border: "1px solid oklch(0.22 0.055 255 / 0.15)",
-            }}
+          {/* Tab switcher */}
+          <div
+            className="relative flex border-b border-border"
+            style={{ background: "oklch(0.96 0.008 240 / 0.5)" }}
           >
-            <Shield className="w-3 h-3" />
-            Passwordless &amp; Secure
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45, duration: 0.35 }}
-          >
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              Sign in to your vault
-            </h2>
-            <p className="text-sm text-muted-foreground mb-7 leading-relaxed">
-              Internet Identity keeps your data secure without passwords — use
-              your device's fingerprint or face ID.
-            </p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.55, duration: 0.35 }}
-          >
-            <Button
-              onClick={login}
-              disabled={isLoggingIn || isInitializing}
-              className="w-full h-12 text-base font-semibold rounded-xl transition-all duration-200 rgb-glow"
-              style={{
-                background:
-                  "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
-                color: "oklch(0.97 0.005 240)",
-                boxShadow: "0 4px 16px oklch(0.22 0.055 255 / 0.3)",
-              }}
+            {/* Sliding indicator */}
+            <motion.div
+              className="absolute bottom-0 h-0.5 w-1/2 rgb-glow-sm"
+              style={{ background: "oklch(0.38 0.1 265)" }}
+              animate={{ x: tab === "login" ? "0%" : "100%" }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            />
+            <button
+              type="button"
+              onClick={() => switchTab("login")}
+              className={`flex-1 py-3.5 text-sm font-semibold transition-colors duration-200 ${
+                tab === "login"
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground/70"
+              }`}
             >
-              {isLoggingIn ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Connecting...
-                </>
-              ) : isInitializing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                "Login with Internet Identity"
-              )}
-            </Button>
-          </motion.div>
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => switchTab("signup")}
+              className={`flex-1 py-3.5 text-sm font-semibold transition-colors duration-200 ${
+                tab === "signup"
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground/70"
+              }`}
+            >
+              Sign Up
+            </button>
+          </div>
 
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.65, duration: 0.4 }}
-            className="text-xs text-muted-foreground mt-4 leading-relaxed"
-          >
-            Your IDs are private and only visible to you — secured by ICP's
-            decentralized authentication.
-          </motion.p>
+          {/* Form area */}
+          <div className="p-6">
+            {/* Security badge */}
+            <div className="flex items-center justify-center mb-5">
+              <div
+                className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold"
+                style={{
+                  background: "oklch(0.22 0.055 255 / 0.08)",
+                  color: "oklch(0.35 0.08 255)",
+                  border: "1px solid oklch(0.22 0.055 255 / 0.15)",
+                }}
+              >
+                <Shield className="w-3 h-3" />
+                Private &amp; Secure
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {tab === "login" ? (
+                <motion.form
+                  key="login-form"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  onSubmit={handleLogin}
+                  className="space-y-4"
+                >
+                  <div className="text-left">
+                    <h2 className="text-xl font-semibold text-foreground mb-1">
+                      Welcome back
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Sign in to access your ID vault
+                    </p>
+                  </div>
+
+                  {/* General error */}
+                  <AnimatePresence>
+                    {errors.general && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="rounded-xl px-3 py-2.5 text-sm text-destructive-foreground font-medium"
+                        style={{
+                          background: "oklch(0.577 0.245 27.325 / 0.12)",
+                          border: "1px solid oklch(0.577 0.245 27.325 / 0.3)",
+                          color: "oklch(0.577 0.245 27.325)",
+                        }}
+                      >
+                        {errors.general}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Username */}
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="login-username"
+                      className="text-sm font-medium text-foreground/80"
+                    >
+                      Username
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="login-username"
+                        type="text"
+                        autoComplete="username"
+                        placeholder="Enter your username"
+                        value={loginUsername}
+                        onChange={(e) => setLoginUsername(e.target.value)}
+                        className={`pl-10 h-11 rounded-xl ${errors.username ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                      />
+                    </div>
+                    {errors.username && (
+                      <p className="text-xs text-destructive">
+                        {errors.username}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Password */}
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="login-password"
+                      className="text-sm font-medium text-foreground/80"
+                    >
+                      Password
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="login-password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        placeholder="Enter your password"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        className={`pl-10 pr-10 h-11 rounded-xl ${errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((p) => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    {errors.password && (
+                      <p className="text-xs text-destructive">
+                        {errors.password}
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full h-11 text-base font-semibold rounded-xl rgb-glow mt-2"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
+                      color: "oklch(0.97 0.005 240)",
+                    }}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Signing in...
+                      </>
+                    ) : (
+                      "Login"
+                    )}
+                  </Button>
+
+                  {isSubmitting && (
+                    <p className="text-xs text-center text-muted-foreground">
+                      Establishing secure identity...
+                    </p>
+                  )}
+
+                  <p className="text-xs text-center text-muted-foreground pt-1">
+                    Don't have an account?{" "}
+                    <button
+                      type="button"
+                      onClick={() => switchTab("signup")}
+                      className="underline underline-offset-2 hover:text-foreground transition-colors font-medium"
+                    >
+                      Sign up
+                    </button>
+                  </p>
+                </motion.form>
+              ) : (
+                <motion.form
+                  key="signup-form"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  onSubmit={handleSignup}
+                  className="space-y-4"
+                >
+                  <div className="text-left">
+                    <h2 className="text-xl font-semibold text-foreground mb-1">
+                      Create your vault
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Set up your account to get started
+                    </p>
+                  </div>
+
+                  {/* General error */}
+                  <AnimatePresence>
+                    {errors.general && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="rounded-xl px-3 py-2.5 text-sm font-medium"
+                        style={{
+                          background: "oklch(0.577 0.245 27.325 / 0.12)",
+                          border: "1px solid oklch(0.577 0.245 27.325 / 0.3)",
+                          color: "oklch(0.577 0.245 27.325)",
+                        }}
+                      >
+                        {errors.general}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Full Name */}
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="signup-name"
+                      className="text-sm font-medium text-foreground/80"
+                    >
+                      Full Name
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signup-name"
+                        type="text"
+                        autoComplete="name"
+                        placeholder="Your full name"
+                        value={signupName}
+                        onChange={(e) => setSignupName(e.target.value)}
+                        className={`pl-10 h-11 rounded-xl ${errors.name ? "border-destructive" : ""}`}
+                      />
+                    </div>
+                    {errors.name && (
+                      <p className="text-xs text-destructive">{errors.name}</p>
+                    )}
+                  </div>
+
+                  {/* Username */}
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="signup-username"
+                      className="text-sm font-medium text-foreground/80"
+                    >
+                      Username
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
+                        @
+                      </span>
+                      <Input
+                        id="signup-username"
+                        type="text"
+                        autoComplete="username"
+                        placeholder="choose_a_username"
+                        value={signupUsername}
+                        onChange={(e) => setSignupUsername(e.target.value)}
+                        className={`pl-8 h-11 rounded-xl ${errors.username ? "border-destructive" : ""}`}
+                      />
+                    </div>
+                    {errors.username && (
+                      <p className="text-xs text-destructive">
+                        {errors.username}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Password */}
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="signup-password"
+                      className="text-sm font-medium text-foreground/80"
+                    >
+                      Password
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signup-password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        placeholder="Min. 6 characters"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        className={`pl-10 pr-10 h-11 rounded-xl ${errors.password ? "border-destructive" : ""}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((p) => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    {errors.password && (
+                      <p className="text-xs text-destructive">
+                        {errors.password}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="signup-confirm"
+                      className="text-sm font-medium text-foreground/80"
+                    >
+                      Confirm Password
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signup-confirm"
+                        type={showConfirmPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        placeholder="Re-enter your password"
+                        value={signupConfirmPassword}
+                        onChange={(e) =>
+                          setSignupConfirmPassword(e.target.value)
+                        }
+                        className={`pl-10 pr-10 h-11 rounded-xl ${errors.confirmPassword ? "border-destructive" : ""}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((p) => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={
+                          showConfirmPassword
+                            ? "Hide password"
+                            : "Show password"
+                        }
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    {errors.confirmPassword && (
+                      <p className="text-xs text-destructive">
+                        {errors.confirmPassword}
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full h-11 text-base font-semibold rounded-xl rgb-glow mt-2"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
+                      color: "oklch(0.97 0.005 240)",
+                    }}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Creating vault...
+                      </>
+                    ) : (
+                      "Create Account"
+                    )}
+                  </Button>
+
+                  {isSubmitting && (
+                    <p className="text-xs text-center text-muted-foreground">
+                      Establishing secure identity...
+                    </p>
+                  )}
+
+                  <p className="text-xs text-center text-muted-foreground pt-1">
+                    Already have an account?{" "}
+                    <button
+                      type="button"
+                      onClick={() => switchTab("login")}
+                      className="underline underline-offset-2 hover:text-foreground transition-colors font-medium"
+                    >
+                      Login
+                    </button>
+                  </p>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </div>
         </motion.div>
 
         {/* Feature hints */}
@@ -170,7 +622,7 @@ export default function LoginPage() {
           {[
             { label: "Offline Ready", desc: "Access IDs anytime" },
             { label: "Private", desc: "Only you can see it" },
-            { label: "Secure", desc: "No passwords needed" },
+            { label: "Secure", desc: "Encrypted storage" },
           ].map((f, i) => (
             <motion.div
               key={f.label}
@@ -199,6 +651,21 @@ export default function LoginPage() {
           caffeine.ai
         </a>
       </footer>
+
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          15%       { transform: translateX(-6px); }
+          30%       { transform: translateX(6px); }
+          45%       { transform: translateX(-5px); }
+          60%       { transform: translateX(5px); }
+          75%       { transform: translateX(-3px); }
+          90%       { transform: translateX(3px); }
+        }
+        .animate-shake {
+          animation: shake 0.6s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 }

@@ -151,10 +151,10 @@ function CollegeIDViewer({
     branch: string;
     academicYear: string;
     validUntil: string;
-    photo: { getDirectURL: () => string };
+    photo: string;
   };
 }) {
-  const photoUrl = data.photo.getDirectURL();
+  const photoUrl = data.photo;
 
   const detailFields = [
     {
@@ -379,10 +379,10 @@ function OtherIDViewer({
     issueDate: string;
     expiryDate: string;
     issuedBy: string;
-    photo: { getDirectURL: () => string };
+    photo: string;
   };
 }) {
-  const photoUrl = data.photo.getDirectURL();
+  const photoUrl = data.photo;
 
   const detailFields = [
     {
