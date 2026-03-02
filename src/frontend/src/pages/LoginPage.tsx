@@ -1,29 +1,131 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Loader2, Lock, Shield, User, Wallet } from "lucide-react";
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  HelpCircle,
+  KeyRound,
+  Loader2,
+  Lock,
+  Shield,
+  User,
+  Wallet,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-type TabType = "login" | "signup";
+type TabType = "login" | "signup" | "forgot";
 
 interface FormErrors {
   name?: string;
   username?: string;
   password?: string;
   confirmPassword?: string;
+  securityQuestion?: string;
+  securityAnswer?: string;
   general?: string;
 }
 
 interface LoginPageProps {
   loginWithPassword: (username: string, password: string) => Promise<void>;
-  signUp: (name: string, username: string, password: string) => Promise<void>;
+  signUp: (
+    name: string,
+    username: string,
+    password: string,
+    securityQuestion: string,
+    securityAnswer: string,
+  ) => Promise<void>;
+  resetPassword: (
+    username: string,
+    securityAnswer: string,
+    newPassword: string,
+  ) => Promise<void>;
+  getSecurityQuestion: (username: string) => string;
+}
+
+const SECURITY_QUESTIONS = [
+  "What is your mother's maiden name?",
+  "What was the name of your first pet?",
+  "What was the name of your primary school?",
+  "What is your favourite movie?",
+  "What city were you born in?",
+  "What is your oldest sibling's middle name?",
+];
+
+// Reusable error box
+function ErrorBox({ message }: { message: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      className="rounded-xl px-3 py-2.5 text-sm font-medium"
+      style={{
+        background: "oklch(0.577 0.245 27.325 / 0.12)",
+        border: "1px solid oklch(0.577 0.245 27.325 / 0.3)",
+        color: "oklch(0.577 0.245 27.325)",
+      }}
+    >
+      {message}
+    </motion.div>
+  );
+}
+
+// Step progress indicator
+function StepIndicator({ current, total }: { current: number; total: number }) {
+  return (
+    <div className="flex items-center gap-2 mb-5">
+      {Array.from({ length: total }).map((_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: static fixed-length step array
+        <div key={i} className="flex items-center gap-2">
+          <motion.div
+            animate={{
+              background:
+                i + 1 <= current
+                  ? "oklch(0.38 0.1 265)"
+                  : "oklch(0.85 0.015 250)",
+              scale: i + 1 === current ? 1.15 : 1,
+            }}
+            transition={{ duration: 0.3 }}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+            style={{
+              color:
+                i + 1 <= current
+                  ? "oklch(0.97 0.005 240)"
+                  : "oklch(0.55 0.03 250)",
+            }}
+          >
+            {i + 1}
+          </motion.div>
+          {i < total - 1 && (
+            <motion.div
+              animate={{
+                background:
+                  i + 1 < current
+                    ? "oklch(0.38 0.1 265)"
+                    : "oklch(0.85 0.015 250)",
+              }}
+              className="h-0.5 w-6 rounded-full"
+              transition={{ duration: 0.3 }}
+            />
+          )}
+        </div>
+      ))}
+      <span className="ml-auto text-xs text-muted-foreground font-medium">
+        Step {current} of {total}
+      </span>
+    </div>
+  );
 }
 
 export default function LoginPage({
   loginWithPassword,
   signUp,
+  resetPassword,
+  getSecurityQuestion,
 }: LoginPageProps) {
   const [tab, setTab] = useState<TabType>("login");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,6 +142,17 @@ export default function LoginPage({
   const [signupUsername, setSignupUsername] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
+  const [signupSecurityQuestion, setSignupSecurityQuestion] = useState("");
+  const [signupSecurityAnswer, setSignupSecurityAnswer] = useState("");
+
+  // Forgot password state
+  const [forgotStep, setForgotStep] = useState<1 | 2 | 3>(1);
+  const [forgotUsername, setForgotUsername] = useState("");
+  const [forgotQuestion, setForgotQuestion] = useState("");
+  const [forgotAnswer, setForgotAnswer] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -88,6 +201,10 @@ export default function LoginPage({
       newErrors.confirmPassword = "Please confirm your password";
     else if (signupPassword !== signupConfirmPassword)
       newErrors.confirmPassword = "Passwords do not match";
+    if (!signupSecurityQuestion)
+      newErrors.securityQuestion = "Please select a security question";
+    if (!signupSecurityAnswer.trim())
+      newErrors.securityAnswer = "Security answer is required";
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       triggerShake();
@@ -96,7 +213,13 @@ export default function LoginPage({
     setErrors({});
     setIsSubmitting(true);
     try {
-      await signUp(signupName.trim(), signupUsername.trim(), signupPassword);
+      await signUp(
+        signupName.trim(),
+        signupUsername.trim(),
+        signupPassword,
+        signupSecurityQuestion,
+        signupSecurityAnswer.trim(),
+      );
       toast.success(`Welcome, ${signupName.trim()}! Your vault is ready.`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Sign up failed";
@@ -107,13 +230,111 @@ export default function LoginPage({
     }
   };
 
-  const switchTab = (newTab: TabType) => {
+  // Forgot password: Step 1 — find username
+  const handleForgotStep1 = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: FormErrors = {};
+    if (!forgotUsername.trim()) newErrors.username = "Username is required";
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      triggerShake();
+      return;
+    }
+    setErrors({});
+    try {
+      const question = getSecurityQuestion(forgotUsername.trim());
+      setForgotQuestion(question);
+      setForgotStep(2);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not find account";
+      setErrors({ general: msg });
+      triggerShake();
+    }
+  };
+
+  // Forgot password: Step 2 — verify answer
+  const handleForgotStep2 = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: FormErrors = {};
+    if (!forgotAnswer.trim()) newErrors.securityAnswer = "Answer is required";
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      triggerShake();
+      return;
+    }
+    setErrors({});
+    setForgotStep(3);
+  };
+
+  // Forgot password: Step 3 — reset password
+  const handleForgotStep3 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: FormErrors = {};
+    if (!forgotNewPassword) newErrors.password = "New password is required";
+    else if (forgotNewPassword.length < 6)
+      newErrors.password = "Password must be at least 6 characters";
+    if (!forgotConfirmPassword)
+      newErrors.confirmPassword = "Please confirm your password";
+    else if (forgotNewPassword !== forgotConfirmPassword)
+      newErrors.confirmPassword = "Passwords do not match";
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      triggerShake();
+      return;
+    }
+    setErrors({});
+    setIsSubmitting(true);
+    try {
+      await resetPassword(
+        forgotUsername.trim(),
+        forgotAnswer.trim(),
+        forgotNewPassword,
+      );
+      toast.success("Password reset successfully!");
+      goBackToLogin();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Password reset failed";
+      setErrors({ general: msg });
+      triggerShake();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const goBackToLogin = () => {
+    setTab("login");
+    setForgotStep(1);
+    setForgotUsername("");
+    setForgotQuestion("");
+    setForgotAnswer("");
+    setForgotNewPassword("");
+    setForgotConfirmPassword("");
+    setShowForgotPassword(false);
+    setErrors({});
+  };
+
+  const switchTab = (newTab: "login" | "signup") => {
     if (isSubmitting) return;
     setTab(newTab);
     setErrors({});
     setShowPassword(false);
     setShowConfirmPassword(false);
   };
+
+  const openForgot = () => {
+    setTab("forgot");
+    setForgotStep(1);
+    setErrors({});
+    setForgotUsername("");
+    setForgotQuestion("");
+    setForgotAnswer("");
+    setForgotNewPassword("");
+    setForgotConfirmPassword("");
+  };
+
+  // Slide direction for forgot steps
+  const forgotSlideDir = (step: 1 | 2 | 3) =>
+    step === forgotStep ? 0 : step < forgotStep ? -30 : 30;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-background">
@@ -195,41 +416,49 @@ export default function LoginPage({
               "0 4px 6px -1px oklch(0.18 0.025 250 / 0.06), 0 16px 48px -12px oklch(0.18 0.025 250 / 0.12)",
           }}
         >
-          {/* Tab switcher */}
-          <div
-            className="relative flex border-b border-border"
-            style={{ background: "oklch(0.96 0.008 240 / 0.5)" }}
-          >
-            {/* Sliding indicator */}
-            <motion.div
-              className="absolute bottom-0 h-0.5 w-1/2 rgb-glow-sm"
-              style={{ background: "oklch(0.38 0.1 265)" }}
-              animate={{ x: tab === "login" ? "0%" : "100%" }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            />
-            <button
-              type="button"
-              onClick={() => switchTab("login")}
-              className={`flex-1 py-3.5 text-sm font-semibold transition-colors duration-200 ${
-                tab === "login"
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground/70"
-              }`}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => switchTab("signup")}
-              className={`flex-1 py-3.5 text-sm font-semibold transition-colors duration-200 ${
-                tab === "signup"
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground/70"
-              }`}
-            >
-              Sign Up
-            </button>
-          </div>
+          {/* Tab switcher — hidden during forgot flow */}
+          <AnimatePresence>
+            {tab !== "forgot" && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.22 }}
+                className="relative flex border-b border-border"
+                style={{ background: "oklch(0.96 0.008 240 / 0.5)" }}
+              >
+                {/* Sliding indicator */}
+                <motion.div
+                  className="absolute bottom-0 h-0.5 w-1/2 rgb-glow-sm"
+                  style={{ background: "oklch(0.38 0.1 265)" }}
+                  animate={{ x: tab === "login" ? "0%" : "100%" }}
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => switchTab("login")}
+                  className={`flex-1 py-3.5 text-sm font-semibold transition-colors duration-200 ${
+                    tab === "login"
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground/70"
+                  }`}
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchTab("signup")}
+                  className={`flex-1 py-3.5 text-sm font-semibold transition-colors duration-200 ${
+                    tab === "signup"
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground/70"
+                  }`}
+                >
+                  Sign Up
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Form area */}
           <div className="p-6">
@@ -249,7 +478,8 @@ export default function LoginPage({
             </div>
 
             <AnimatePresence mode="wait">
-              {tab === "login" ? (
+              {/* ─────────────── LOGIN ─────────────── */}
+              {tab === "login" && (
                 <motion.form
                   key="login-form"
                   initial={{ opacity: 0, x: -20 }}
@@ -268,23 +498,8 @@ export default function LoginPage({
                     </p>
                   </div>
 
-                  {/* General error */}
                   <AnimatePresence>
-                    {errors.general && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="rounded-xl px-3 py-2.5 text-sm text-destructive-foreground font-medium"
-                        style={{
-                          background: "oklch(0.577 0.245 27.325 / 0.12)",
-                          border: "1px solid oklch(0.577 0.245 27.325 / 0.3)",
-                          color: "oklch(0.577 0.245 27.325)",
-                        }}
-                      >
-                        {errors.general}
-                      </motion.div>
-                    )}
+                    {errors.general && <ErrorBox message={errors.general} />}
                   </AnimatePresence>
 
                   {/* Username */}
@@ -353,6 +568,16 @@ export default function LoginPage({
                         {errors.password}
                       </p>
                     )}
+                    {/* Forgot password link */}
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={openForgot}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
                   </div>
 
                   <Button
@@ -392,7 +617,10 @@ export default function LoginPage({
                     </button>
                   </p>
                 </motion.form>
-              ) : (
+              )}
+
+              {/* ─────────────── SIGN UP ─────────────── */}
+              {tab === "signup" && (
                 <motion.form
                   key="signup-form"
                   initial={{ opacity: 0, x: 20 }}
@@ -411,23 +639,8 @@ export default function LoginPage({
                     </p>
                   </div>
 
-                  {/* General error */}
                   <AnimatePresence>
-                    {errors.general && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="rounded-xl px-3 py-2.5 text-sm font-medium"
-                        style={{
-                          background: "oklch(0.577 0.245 27.325 / 0.12)",
-                          border: "1px solid oklch(0.577 0.245 27.325 / 0.3)",
-                          color: "oklch(0.577 0.245 27.325)",
-                        }}
-                      >
-                        {errors.general}
-                      </motion.div>
-                    )}
+                    {errors.general && <ErrorBox message={errors.general} />}
                   </AnimatePresence>
 
                   {/* Full Name */}
@@ -570,6 +783,96 @@ export default function LoginPage({
                     )}
                   </div>
 
+                  {/* Security Question */}
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="signup-security-question"
+                      className="text-sm font-medium text-foreground/80"
+                    >
+                      Security Question
+                    </Label>
+                    <div className="relative">
+                      <HelpCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+                      <select
+                        id="signup-security-question"
+                        value={signupSecurityQuestion}
+                        onChange={(e) =>
+                          setSignupSecurityQuestion(e.target.value)
+                        }
+                        className={`w-full h-11 pl-10 pr-4 rounded-xl text-sm appearance-none border bg-background text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 ${
+                          errors.securityQuestion
+                            ? "border-destructive"
+                            : "border-input"
+                        }`}
+                        style={{ backgroundImage: "none" }}
+                      >
+                        <option value="" disabled>
+                          Select a question...
+                        </option>
+                        {SECURITY_QUESTIONS.map((q) => (
+                          <option key={q} value={q}>
+                            {q}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                          role="img"
+                          aria-label="dropdown chevron"
+                        >
+                          <title>dropdown chevron</title>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                    {errors.securityQuestion && (
+                      <p className="text-xs text-destructive">
+                        {errors.securityQuestion}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Security Answer */}
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="signup-security-answer"
+                      className="text-sm font-medium text-foreground/80"
+                    >
+                      Security Answer
+                    </Label>
+                    <div className="relative">
+                      <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="signup-security-answer"
+                        type="text"
+                        placeholder="Your answer (remember this!)"
+                        value={signupSecurityAnswer}
+                        onChange={(e) =>
+                          setSignupSecurityAnswer(e.target.value)
+                        }
+                        className={`pl-10 h-11 rounded-xl ${errors.securityAnswer ? "border-destructive" : ""}`}
+                      />
+                    </div>
+                    {errors.securityAnswer && (
+                      <p className="text-xs text-destructive">
+                        {errors.securityAnswer}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      This is used to recover your account if you forget your
+                      password.
+                    </p>
+                  </div>
+
                   <Button
                     type="submit"
                     disabled={isSubmitting}
@@ -608,6 +911,298 @@ export default function LoginPage({
                   </p>
                 </motion.form>
               )}
+
+              {/* ─────────────── FORGOT PASSWORD ─────────────── */}
+              {tab === "forgot" && (
+                <motion.div
+                  key="forgot-flow"
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -30 }}
+                  transition={{ duration: 0.26, ease: "easeOut" }}
+                  className="space-y-4"
+                >
+                  {/* Header */}
+                  <div className="text-left">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div
+                        className="w-7 h-7 rounded-lg flex items-center justify-center"
+                        style={{
+                          background: "oklch(0.38 0.1 265 / 0.12)",
+                        }}
+                      >
+                        <KeyRound
+                          className="w-3.5 h-3.5"
+                          style={{ color: "oklch(0.38 0.1 265)" }}
+                        />
+                      </div>
+                      <h2 className="text-xl font-semibold text-foreground">
+                        Reset Password
+                      </h2>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Answer your security question to reset your password.
+                    </p>
+                  </div>
+
+                  {/* Step indicator */}
+                  <StepIndicator current={forgotStep} total={3} />
+
+                  {/* Step forms */}
+                  <AnimatePresence mode="wait">
+                    {/* Step 1 — Enter username */}
+                    {forgotStep === 1 && (
+                      <motion.form
+                        key="forgot-step-1"
+                        initial={{ opacity: 0, x: forgotSlideDir(1) }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -30 }}
+                        transition={{ duration: 0.22, ease: "easeOut" }}
+                        onSubmit={handleForgotStep1}
+                        className="space-y-4"
+                      >
+                        <AnimatePresence>
+                          {errors.general && (
+                            <ErrorBox message={errors.general} />
+                          )}
+                        </AnimatePresence>
+
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="forgot-username"
+                            className="text-sm font-medium text-foreground/80"
+                          >
+                            Username
+                          </Label>
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                              id="forgot-username"
+                              type="text"
+                              autoComplete="username"
+                              placeholder="Enter your username"
+                              value={forgotUsername}
+                              onChange={(e) =>
+                                setForgotUsername(e.target.value)
+                              }
+                              className={`pl-10 h-11 rounded-xl ${errors.username ? "border-destructive" : ""}`}
+                            />
+                          </div>
+                          {errors.username && (
+                            <p className="text-xs text-destructive">
+                              {errors.username}
+                            </p>
+                          )}
+                        </div>
+
+                        <Button
+                          type="submit"
+                          className="w-full h-11 text-base font-semibold rounded-xl rgb-glow"
+                          style={{
+                            background:
+                              "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
+                            color: "oklch(0.97 0.005 240)",
+                          }}
+                        >
+                          Continue
+                        </Button>
+                      </motion.form>
+                    )}
+
+                    {/* Step 2 — Answer security question */}
+                    {forgotStep === 2 && (
+                      <motion.form
+                        key="forgot-step-2"
+                        initial={{ opacity: 0, x: 30 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -30 }}
+                        transition={{ duration: 0.22, ease: "easeOut" }}
+                        onSubmit={handleForgotStep2}
+                        className="space-y-4"
+                      >
+                        <AnimatePresence>
+                          {errors.general && (
+                            <ErrorBox message={errors.general} />
+                          )}
+                        </AnimatePresence>
+
+                        {/* Security question display */}
+                        <div
+                          className="rounded-xl px-4 py-3 text-sm font-medium text-left"
+                          style={{
+                            background: "oklch(0.38 0.1 265 / 0.08)",
+                            border: "1px solid oklch(0.38 0.1 265 / 0.2)",
+                            color: "oklch(0.28 0.07 265)",
+                          }}
+                        >
+                          <p className="text-xs uppercase tracking-wide font-semibold mb-1 opacity-70">
+                            Your security question
+                          </p>
+                          <p>{forgotQuestion}</p>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="forgot-answer"
+                            className="text-sm font-medium text-foreground/80"
+                          >
+                            Your Answer
+                          </Label>
+                          <div className="relative">
+                            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                              id="forgot-answer"
+                              type="text"
+                              placeholder="Type your answer"
+                              value={forgotAnswer}
+                              onChange={(e) => setForgotAnswer(e.target.value)}
+                              className={`pl-10 h-11 rounded-xl ${errors.securityAnswer ? "border-destructive" : ""}`}
+                            />
+                          </div>
+                          {errors.securityAnswer && (
+                            <p className="text-xs text-destructive">
+                              {errors.securityAnswer}
+                            </p>
+                          )}
+                        </div>
+
+                        <Button
+                          type="submit"
+                          className="w-full h-11 text-base font-semibold rounded-xl rgb-glow"
+                          style={{
+                            background:
+                              "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
+                            color: "oklch(0.97 0.005 240)",
+                          }}
+                        >
+                          Verify Answer
+                        </Button>
+                      </motion.form>
+                    )}
+
+                    {/* Step 3 — Set new password */}
+                    {forgotStep === 3 && (
+                      <motion.form
+                        key="forgot-step-3"
+                        initial={{ opacity: 0, x: 30 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -30 }}
+                        transition={{ duration: 0.22, ease: "easeOut" }}
+                        onSubmit={handleForgotStep3}
+                        className="space-y-4"
+                      >
+                        <AnimatePresence>
+                          {errors.general && (
+                            <ErrorBox message={errors.general} />
+                          )}
+                        </AnimatePresence>
+
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="forgot-new-password"
+                            className="text-sm font-medium text-foreground/80"
+                          >
+                            New Password
+                          </Label>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                              id="forgot-new-password"
+                              type={showForgotPassword ? "text" : "password"}
+                              autoComplete="new-password"
+                              placeholder="Min. 6 characters"
+                              value={forgotNewPassword}
+                              onChange={(e) =>
+                                setForgotNewPassword(e.target.value)
+                              }
+                              className={`pl-10 pr-10 h-11 rounded-xl ${errors.password ? "border-destructive" : ""}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowForgotPassword((p) => !p)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                              aria-label={
+                                showForgotPassword
+                                  ? "Hide password"
+                                  : "Show password"
+                              }
+                            >
+                              {showForgotPassword ? (
+                                <EyeOff className="w-4 h-4" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+                          {errors.password && (
+                            <p className="text-xs text-destructive">
+                              {errors.password}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="forgot-confirm-password"
+                            className="text-sm font-medium text-foreground/80"
+                          >
+                            Confirm New Password
+                          </Label>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                              id="forgot-confirm-password"
+                              type={showForgotPassword ? "text" : "password"}
+                              autoComplete="new-password"
+                              placeholder="Re-enter new password"
+                              value={forgotConfirmPassword}
+                              onChange={(e) =>
+                                setForgotConfirmPassword(e.target.value)
+                              }
+                              className={`pl-10 h-11 rounded-xl ${errors.confirmPassword ? "border-destructive" : ""}`}
+                            />
+                          </div>
+                          {errors.confirmPassword && (
+                            <p className="text-xs text-destructive">
+                              {errors.confirmPassword}
+                            </p>
+                          )}
+                        </div>
+
+                        <Button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="w-full h-11 text-base font-semibold rounded-xl rgb-glow"
+                          style={{
+                            background:
+                              "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
+                            color: "oklch(0.97 0.005 240)",
+                          }}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Resetting...
+                            </>
+                          ) : (
+                            "Reset Password"
+                          )}
+                        </Button>
+                      </motion.form>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Back to Login link */}
+                  <button
+                    type="button"
+                    onClick={goBackToLogin}
+                    className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    Back to Login
+                  </button>
+                </motion.div>
+              )}
             </AnimatePresence>
           </div>
         </motion.div>
@@ -639,17 +1234,12 @@ export default function LoginPage({
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 mt-auto py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()}. Built with{" "}
-        <span className="text-accent">♥</span> using{" "}
-        <a
-          href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:text-foreground transition-colors"
-        >
-          caffeine.ai
-        </a>
+      <footer className="relative z-10 mt-auto py-6 text-center text-xs text-muted-foreground space-y-1">
+        <p className="font-medium text-foreground/70">
+          Made with <span className="text-red-500">♥️</span> by Ankush Singh |
+          Caffeine For Students
+        </p>
+        <p>© 2026 All Rights Reserved</p>
       </footer>
 
       <style>{`
