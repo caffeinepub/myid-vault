@@ -81,7 +81,7 @@ export default function LoginPage() {
             damping: 22,
             delay: 0.15,
           }}
-          className="w-full rounded-3xl border border-border bg-card p-8"
+          className="w-full rounded-3xl border border-border bg-card p-8 rgb-glow-sm rgb-border"
           style={{
             boxShadow:
               "0 4px 6px -1px oklch(0.18 0.025 250 / 0.06), 0 16px 48px -12px oklch(0.18 0.025 250 / 0.12)",
@@ -125,7 +125,7 @@ export default function LoginPage() {
             <Button
               onClick={login}
               disabled={isLoggingIn || isInitializing}
-              className="w-full h-12 text-base font-semibold rounded-xl transition-all duration-200"
+              className="w-full h-12 text-base font-semibold rounded-xl transition-all duration-200 rgb-glow"
               style={{
                 background:
                   "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",

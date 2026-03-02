@@ -42,7 +42,7 @@ export default function HomePage({
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-sm border-b border-border">
+      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-sm border-b border-border rgb-glow-sm">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           {/* Logo — animated slide-down on mount */}
           <motion.div
@@ -94,7 +94,7 @@ export default function HomePage({
             <Button
               onClick={() => navigate({ type: "add" })}
               size="sm"
-              className="gap-1.5 font-semibold text-sm flex-shrink-0"
+              className="gap-1.5 font-semibold text-sm flex-shrink-0 rgb-glow"
               style={{
                 background:
                   "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.32 0.08 260))",
@@ -111,7 +111,7 @@ export default function HomePage({
               type="button"
               onClick={onLogout}
               title="Logout"
-              className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-colors flex-shrink-0"
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-colors flex-shrink-0 rgb-glow"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -210,7 +210,7 @@ export default function HomePage({
             <Button
               onClick={() => navigate({ type: "add" })}
               size="lg"
-              className="gap-2 font-semibold px-8"
+              className="gap-2 font-semibold px-8 rgb-glow"
               style={{
                 background:
                   "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.32 0.08 260))",
@@ -273,7 +273,7 @@ export default function HomePage({
       </main>
 
       {/* Footer */}
-      <footer className="text-center py-4 px-4 text-xs text-muted-foreground border-t border-border">
+      <footer className="text-center py-4 px-4 text-xs text-muted-foreground border-t border-border rgb-glow-sm">
         © {new Date().getFullYear()}. Built with{" "}
         <span className="text-accent">♥</span> using{" "}
         <a

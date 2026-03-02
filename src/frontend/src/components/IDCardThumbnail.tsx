@@ -30,7 +30,7 @@ export default function IDCardThumbnail({
         }}
         whileTap={{ scale: 0.97 }}
         transition={{ type: "spring", stiffness: 380, damping: 22 }}
-        className="w-full text-left rounded-2xl overflow-hidden card-shine noise-overlay relative"
+        className="w-full text-left rounded-2xl overflow-hidden card-shine noise-overlay relative rgb-glow"
         style={{
           background:
             "linear-gradient(135deg, oklch(0.16 0.05 255) 0%, oklch(0.22 0.07 255) 50%, oklch(0.18 0.06 265) 100%)",
@@ -160,7 +160,7 @@ export default function IDCardThumbnail({
       }}
       whileTap={{ scale: 0.97 }}
       transition={{ type: "spring", stiffness: 380, damping: 22 }}
-      className="w-full text-left rounded-2xl overflow-hidden card-shine noise-overlay relative"
+      className="w-full text-left rounded-2xl overflow-hidden card-shine noise-overlay relative rgb-glow"
       style={{
         background:
           "linear-gradient(135deg, oklch(0.25 0.08 50) 0%, oklch(0.3 0.09 55) 50%, oklch(0.22 0.07 45) 100%)",

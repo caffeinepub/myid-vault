@@ -101,6 +101,32 @@
   }
 }
 
+/* ─── RGB Glow Keyframes ─────────────────────────────────────────── */
+@keyframes rgb-glow {
+  0%   { box-shadow: 0 0 8px 2px #ff003388, 0 0 20px 4px #ff003344; }
+  16%  { box-shadow: 0 0 8px 2px #ff880088, 0 0 20px 4px #ff880044; }
+  33%  { box-shadow: 0 0 8px 2px #00ff8888, 0 0 20px 4px #00ff8844; }
+  50%  { box-shadow: 0 0 8px 2px #0088ff88, 0 0 20px 4px #0088ff44; }
+  66%  { box-shadow: 0 0 8px 2px #8800ff88, 0 0 20px 4px #8800ff44; }
+  83%  { box-shadow: 0 0 8px 2px #ff008888, 0 0 20px 4px #ff008844; }
+  100% { box-shadow: 0 0 8px 2px #ff003388, 0 0 20px 4px #ff003344; }
+}
+
+@keyframes rgb-glow-pulse {
+  0%, 100% { opacity: 0.8; }
+  50%       { opacity: 1; }
+}
+
+@keyframes rgb-border-anim {
+  0%   { border-color: #ff003388; }
+  16%  { border-color: #ff880088; }
+  33%  { border-color: #00ff8888; }
+  50%  { border-color: #0088ff88; }
+  66%  { border-color: #8800ff88; }
+  83%  { border-color: #ff008888; }
+  100% { border-color: #ff003388; }
+}
+
 /* ─── Custom Utilities ───────────────────────────────────────────── */
 @layer utilities {
   .font-display {
@@ -109,6 +135,19 @@
 
   .font-serif {
     font-family: "Instrument Serif", serif;
+  }
+
+  .rgb-glow {
+    animation: rgb-glow 3s linear infinite, rgb-glow-pulse 1.5s ease-in-out infinite;
+  }
+
+  .rgb-glow-sm {
+    animation: rgb-glow 4s linear infinite;
+    box-shadow: 0 0 4px 1px #ff003366;
+  }
+
+  .rgb-border {
+    animation: rgb-border-anim 3s linear infinite;
   }
 
   .college-card-bg {

@@ -515,7 +515,7 @@ export default function AddCardPage({
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="sticky top-0 z-40 bg-background/90 backdrop-blur-sm border-b border-border"
+        className="sticky top-0 z-40 bg-background/90 backdrop-blur-sm border-b border-border rgb-glow-sm"
       >
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
           <button
@@ -527,7 +527,7 @@ export default function AddCardPage({
                 navigate({ type: "home" });
               }
             }}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rgb-glow rounded-lg px-2 py-1"
           >
             <ArrowLeft className="w-4 h-4" />
             {step === "form" && !isEdit ? "Back" : "Cancel"}
@@ -542,15 +542,23 @@ export default function AddCardPage({
         </div>
       </motion.header>
 
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6">
+      <main
+        className="flex-1 max-w-2xl mx-auto w-full px-4 py-6"
+        style={{ perspective: "800px" }}
+      >
         <AnimatePresence mode="wait">
           {step === "choose" && (
             <motion.div
               key="choose"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.25 }}
+              initial={{ opacity: 0, x: -60, y: 10, scale: 0.94, rotateZ: -1 }}
+              animate={{ opacity: 1, x: 0, y: 0, scale: 1, rotateZ: 0 }}
+              exit={{ opacity: 0, x: 60, y: -10, scale: 0.94, rotateZ: 1 }}
+              transition={{
+                type: "spring",
+                stiffness: 320,
+                damping: 26,
+                opacity: { duration: 0.2 },
+              }}
             >
               <p className="text-muted-foreground text-sm mb-6">
                 Choose the type of ID you want to add to your vault.
@@ -603,10 +611,15 @@ export default function AddCardPage({
           {step === "form" && cardType === "collegeStudent" && (
             <motion.div
               key="college-form"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.25 }}
+              initial={{ opacity: 0, x: 60, y: 10, scale: 0.94, rotateZ: 1 }}
+              animate={{ opacity: 1, x: 0, y: 0, scale: 1, rotateZ: 0 }}
+              exit={{ opacity: 0, x: -60, y: -10, scale: 0.94, rotateZ: -1 }}
+              transition={{
+                type: "spring",
+                stiffness: 320,
+                damping: 26,
+                opacity: { duration: 0.2 },
+              }}
             >
               <CollegeIDForm
                 data={collegeForm}
@@ -620,10 +633,15 @@ export default function AddCardPage({
           {step === "form" && cardType === "other" && (
             <motion.div
               key="other-form"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.25 }}
+              initial={{ opacity: 0, x: 60, y: 10, scale: 0.94, rotateZ: 1 }}
+              animate={{ opacity: 1, x: 0, y: 0, scale: 1, rotateZ: 0 }}
+              exit={{ opacity: 0, x: -60, y: -10, scale: 0.94, rotateZ: -1 }}
+              transition={{
+                type: "spring",
+                stiffness: 320,
+                damping: 26,
+                opacity: { duration: 0.2 },
+              }}
             >
               <OtherIDForm
                 data={otherForm}
@@ -664,7 +682,7 @@ function TypeCard({
         boxShadow: "0 8px 24px oklch(0.18 0.04 255 / 0.18)",
       }}
       whileTap={{ scale: 0.985 }}
-      className="w-full text-left rounded-2xl p-5 border border-border bg-card hover:border-primary/30 transition-colors"
+      className="w-full text-left rounded-2xl p-5 border border-border bg-card hover:border-primary/30 transition-colors rgb-glow"
       style={{
         boxShadow: "0 2px 8px oklch(0.18 0.025 250 / 0.06)",
       }}
@@ -1477,7 +1495,7 @@ function CollegeIDForm({
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="rounded-xl px-4 py-3 flex items-center gap-3"
+        className="rounded-xl px-4 py-3 flex items-center gap-3 rgb-glow-sm rgb-border"
         style={{
           background:
             "linear-gradient(135deg, oklch(0.22 0.055 255 / 0.08), oklch(0.32 0.08 260 / 0.05))",
@@ -1595,7 +1613,7 @@ function CollegeIDForm({
         <Button
           onClick={onSubmit}
           disabled={isSubmitting}
-          className="w-full h-12 font-semibold text-base"
+          className="w-full h-12 font-semibold text-base rgb-glow"
           style={{
             background:
               "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.32 0.08 260))",
@@ -1665,7 +1683,7 @@ function OtherIDForm({
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="rounded-xl px-4 py-3 flex items-center gap-3"
+        className="rounded-xl px-4 py-3 flex items-center gap-3 rgb-glow-sm rgb-border"
         style={{
           background:
             "linear-gradient(135deg, oklch(0.28 0.08 52 / 0.08), oklch(0.35 0.09 55 / 0.05))",
@@ -1743,7 +1761,7 @@ function OtherIDForm({
         <Button
           onClick={onSubmit}
           disabled={isSubmitting}
-          className="w-full h-12 font-semibold text-base"
+          className="w-full h-12 font-semibold text-base rgb-glow"
           style={{
             background:
               "linear-gradient(135deg, oklch(0.28 0.08 52), oklch(0.38 0.1 55))",

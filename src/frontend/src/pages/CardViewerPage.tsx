@@ -61,7 +61,7 @@ export default function CardViewerPage({
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="sticky top-0 z-40 bg-background/90 backdrop-blur-sm border-b border-border"
+        className="sticky top-0 z-40 bg-background/90 backdrop-blur-sm border-b border-border rgb-glow-sm"
       >
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <button
@@ -79,7 +79,7 @@ export default function CardViewerPage({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-1.5 text-xs"
+                  className="gap-1.5 text-xs rgb-glow"
                   onClick={() => navigate({ type: "edit", cardId })}
                 >
                   <Edit2 className="w-3.5 h-3.5" />
@@ -90,7 +90,7 @@ export default function CardViewerPage({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="gap-1.5 text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
+                      className="gap-1.5 text-xs border-destructive/40 text-destructive hover:bg-destructive/10 rgb-glow"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
@@ -191,9 +191,9 @@ function CollegeIDViewer({
 
   return (
     <motion.div
-      initial={{ opacity: 0, rotateY: 8, scale: 0.96 }}
-      animate={{ opacity: 1, rotateY: 0, scale: 1 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, rotateY: 15, rotateX: 5, scale: 0.9, y: 30 }}
+      animate={{ opacity: 1, rotateY: 0, rotateX: 0, scale: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 260, damping: 24 }}
       style={{ perspective: "1000px" }}
     >
       {/* Physical-style ID card */}
@@ -209,9 +209,9 @@ function CollegeIDViewer({
           maxWidth: "420px",
         }}
       >
-        {/* Amber top stripe — continuous shimmer */}
+        {/* Amber top stripe — continuous shimmer + RGB glow */}
         <div
-          className="h-1.5 relative overflow-hidden"
+          className="h-1.5 relative overflow-hidden rgb-glow-sm"
           style={{
             background:
               "linear-gradient(90deg, oklch(0.72 0.14 65), oklch(0.85 0.18 75), oklch(0.78 0.16 68))",
@@ -340,7 +340,7 @@ function CollegeIDViewer({
               key={field.label}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 + i * 0.06, duration: 0.3 }}
+              transition={{ delay: 0.04 + i * 0.04, duration: 0.25 }}
             >
               <DetailField
                 icon={field.icon}
@@ -419,9 +419,9 @@ function OtherIDViewer({
 
   return (
     <motion.div
-      initial={{ opacity: 0, rotateY: 8, scale: 0.96 }}
-      animate={{ opacity: 1, rotateY: 0, scale: 1 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, rotateY: 15, rotateX: 5, scale: 0.9, y: 30 }}
+      animate={{ opacity: 1, rotateY: 0, rotateX: 0, scale: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 260, damping: 24 }}
       style={{ perspective: "1000px" }}
     >
       <motion.div
@@ -436,9 +436,9 @@ function OtherIDViewer({
           maxWidth: "420px",
         }}
       >
-        {/* Amber top stripe — continuous shimmer */}
+        {/* Amber top stripe — continuous shimmer + RGB glow */}
         <div
-          className="h-1.5 relative overflow-hidden"
+          className="h-1.5 relative overflow-hidden rgb-glow-sm"
           style={{
             background:
               "linear-gradient(90deg, oklch(0.65 0.14 65), oklch(0.78 0.18 70), oklch(0.72 0.16 66))",
@@ -561,7 +561,7 @@ function OtherIDViewer({
               key={field.label}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 + i * 0.06, duration: 0.3 }}
+              transition={{ delay: 0.04 + i * 0.04, duration: 0.25 }}
               className={field.span ? "col-span-2" : ""}
             >
               <DetailField
