@@ -56,7 +56,7 @@ export default function HomePage({
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-sm border-b border-border rgb-glow-sm">
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border rgb-glow-sm">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           {/* Logo — animated slide-down on mount */}
           <motion.div
@@ -66,13 +66,17 @@ export default function HomePage({
             className="flex items-center gap-2.5 flex-shrink-0"
           >
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              className="w-9 h-9 rounded-xl flex items-center justify-center rgb-glow-sm"
               style={{
                 background:
-                  "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.32 0.08 260))",
+                  "linear-gradient(135deg, oklch(0.12 0.06 220), oklch(0.55 0.2 195 / 0.8))",
+                boxShadow: "0 0 12px 2px oklch(0.72 0.22 195 / 0.3)",
               }}
             >
-              <Wallet className="w-5 h-5 text-white" />
+              <Wallet
+                className="w-5 h-5"
+                style={{ color: "oklch(0.97 0.005 240)" }}
+              />
             </div>
             <h1 className="text-base font-display font-bold text-foreground leading-none">
               MyID Vault
@@ -95,9 +99,9 @@ export default function HomePage({
               <div
                 className="hidden sm:flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
                 style={{
-                  background: "oklch(0.22 0.055 255 / 0.08)",
-                  color: "oklch(0.3 0.06 255)",
-                  border: "1px solid oklch(0.22 0.055 255 / 0.12)",
+                  background: "oklch(0.72 0.22 195 / 0.1)",
+                  color: "oklch(0.72 0.22 195)",
+                  border: "1px solid oklch(0.72 0.22 195 / 0.2)",
                 }}
               >
                 <User className="w-3 h-3 flex-shrink-0" />
@@ -108,10 +112,11 @@ export default function HomePage({
             <Button
               onClick={() => navigate({ type: "add" })}
               size="sm"
-              className="gap-1.5 font-semibold text-sm flex-shrink-0 rgb-glow"
+              data-ocid="home.add_id.primary_button"
+              className="gap-1.5 font-semibold text-sm flex-shrink-0 btn-auto-glow"
               style={{
                 background:
-                  "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.32 0.08 260))",
+                  "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
                 color: "oklch(0.97 0.005 240)",
               }}
             >
@@ -125,7 +130,8 @@ export default function HomePage({
               type="button"
               onClick={() => navigate({ type: "settings" })}
               title="Settings"
-              className="relative flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0 rgb-glow"
+              data-ocid="home.settings.button"
+              className="relative flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0 btn-auto-glow-delay-1"
             >
               <Settings className="w-4 h-4" />
               {/* Warning dot when no security question */}
@@ -143,7 +149,8 @@ export default function HomePage({
               type="button"
               onClick={onLogout}
               title="Logout"
-              className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-colors flex-shrink-0 rgb-glow"
+              data-ocid="home.logout.button"
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-colors flex-shrink-0 btn-auto-glow-delay-2"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -170,8 +177,8 @@ export default function HomePage({
               transition={{ type: "spring", stiffness: 340, damping: 26 }}
               className="mb-5 rounded-2xl px-4 py-3.5 flex items-start gap-3"
               style={{
-                background: "oklch(0.88 0.12 75 / 0.15)",
-                border: "1.5px solid oklch(0.75 0.16 70 / 0.35)",
+                background: "oklch(0.62 0.26 25 / 0.1)",
+                border: "1.5px solid oklch(0.62 0.26 25 / 0.3)",
               }}
               role="alert"
             >
@@ -182,20 +189,20 @@ export default function HomePage({
               >
                 <AlertTriangle
                   className="w-4 h-4"
-                  style={{ color: "oklch(0.55 0.16 65)" }}
+                  style={{ color: "oklch(0.72 0.22 25)" }}
                 />
               </motion.div>
 
               <div className="flex-1 min-w-0">
                 <p
                   className="text-sm font-semibold leading-snug"
-                  style={{ color: "oklch(0.38 0.1 60)" }}
+                  style={{ color: "oklch(0.82 0.15 25)" }}
                 >
                   Protect your account
                 </p>
                 <p
                   className="text-xs mt-0.5 leading-relaxed"
-                  style={{ color: "oklch(0.48 0.08 65)" }}
+                  style={{ color: "oklch(0.72 0.1 25)" }}
                 >
                   Set up a recovery question in case you forget your password.
                 </p>
@@ -203,7 +210,7 @@ export default function HomePage({
                   type="button"
                   onClick={() => navigate({ type: "settings" })}
                   className="mt-2 text-xs font-semibold underline underline-offset-2 transition-opacity hover:opacity-70"
-                  style={{ color: "oklch(0.42 0.12 60)" }}
+                  style={{ color: "oklch(0.82 0.2 25)" }}
                 >
                   Set Up Now →
                 </button>
@@ -212,8 +219,8 @@ export default function HomePage({
               <button
                 type="button"
                 onClick={() => setBannerDismissed(true)}
-                className="flex-shrink-0 rounded-lg p-1 transition-colors hover:bg-black/5"
-                style={{ color: "oklch(0.55 0.1 65)" }}
+                className="flex-shrink-0 rounded-lg p-1 transition-colors hover:bg-white/5"
+                style={{ color: "oklch(0.65 0.1 25)" }}
                 aria-label="Dismiss reminder"
               >
                 <X className="w-3.5 h-3.5" />
@@ -229,8 +236,9 @@ export default function HomePage({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{
               type: "spring",
-              stiffness: 300,
-              damping: 26,
+              stiffness: 240,
+              damping: 22,
+              mass: 0.85,
               delay: 0.12,
             }}
             className="relative mb-6"
@@ -275,11 +283,11 @@ export default function HomePage({
               className="mb-6"
             >
               <div
-                className="w-24 h-24 rounded-3xl flex items-center justify-center"
+                className="w-24 h-24 rounded-3xl flex items-center justify-center rgb-glow"
                 style={{
                   background:
-                    "linear-gradient(135deg, oklch(0.22 0.055 255 / 0.12), oklch(0.32 0.08 260 / 0.08))",
-                  border: "1.5px dashed oklch(0.22 0.055 255 / 0.3)",
+                    "linear-gradient(135deg, oklch(0.72 0.22 195 / 0.08), oklch(0.65 0.28 300 / 0.06))",
+                  border: "1.5px dashed oklch(0.72 0.22 195 / 0.4)",
                 }}
               >
                 <motion.div
@@ -304,10 +312,11 @@ export default function HomePage({
             <Button
               onClick={() => navigate({ type: "add" })}
               size="lg"
-              className="gap-2 font-semibold px-8 rgb-glow"
+              data-ocid="home.add_first_id.primary_button"
+              className="gap-2 font-semibold px-8 btn-auto-glow"
               style={{
                 background:
-                  "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.32 0.08 260))",
+                  "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
                 color: "oklch(0.97 0.005 240)",
               }}
             >
@@ -336,7 +345,12 @@ export default function HomePage({
                     hidden: { opacity: 0, y: 20, scale: 0.93 },
                     visible: { opacity: 1, y: 0, scale: 1 },
                   }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 240,
+                    damping: 22,
+                    mass: 0.85,
+                  }}
                   exit={{ opacity: 0, scale: 0.92, y: -8 }}
                   layout
                 >

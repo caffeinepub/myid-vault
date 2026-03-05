@@ -519,11 +519,12 @@ export default function AddCardPage({
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="sticky top-0 z-40 bg-background/90 backdrop-blur-sm border-b border-border rgb-glow-sm"
+        className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border rgb-glow-sm"
       >
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
           <button
             type="button"
+            data-ocid="add_card.back.button"
             onClick={() => {
               if (step === "form" && !isEdit) {
                 setStep("choose");
@@ -531,7 +532,7 @@ export default function AddCardPage({
                 navigate({ type: "home" });
               }
             }}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rgb-glow rounded-lg px-2 py-1"
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors btn-auto-glow-delay-2 rounded-lg px-2 py-1"
           >
             <ArrowLeft className="w-4 h-4" />
             {step === "form" && !isEdit ? "Back" : "Cancel"}
@@ -587,8 +588,8 @@ export default function AddCardPage({
                     icon={<GraduationCap className="w-6 h-6" />}
                     title="College Student ID"
                     description="Enrollment number, course, branch, college name, academic year"
-                    color="oklch(0.22 0.055 255)"
-                    accentColor="oklch(0.78 0.14 65)"
+                    color="oklch(0.55 0.2 195)"
+                    accentColor="oklch(0.72 0.22 195)"
                     onClick={() => handleChooseType("collegeStudent")}
                   />
                 </motion.div>
@@ -603,8 +604,8 @@ export default function AddCardPage({
                     icon={<CreditCard className="w-6 h-6" />}
                     title="Other ID"
                     description="Aadhaar, PAN, Passport, Driving Licence, Voter ID, College & School IDs"
-                    color="oklch(0.28 0.08 52)"
-                    accentColor="oklch(0.72 0.14 65)"
+                    color="oklch(0.5 0.25 300)"
+                    accentColor="oklch(0.65 0.28 300)"
                     onClick={() => handleChooseType("other")}
                   />
                 </motion.div>
@@ -683,12 +684,13 @@ function TypeCard({
       whileHover={{
         scale: 1.015,
         y: -3,
-        boxShadow: "0 8px 24px oklch(0.18 0.04 255 / 0.18)",
+        boxShadow:
+          "0 8px 24px oklch(0.72 0.22 195 / 0.18), 0 0 0 1px oklch(0.72 0.22 195 / 0.2)",
       }}
       whileTap={{ scale: 0.985 }}
-      className="w-full text-left rounded-2xl p-5 border border-border bg-card hover:border-primary/30 transition-colors rgb-glow"
+      className="w-full text-left rounded-2xl p-5 border border-border bg-card hover:border-primary/40 transition-colors btn-auto-glow"
       style={{
-        boxShadow: "0 2px 8px oklch(0.18 0.025 250 / 0.06)",
+        boxShadow: "0 2px 8px oklch(0.08 0.015 260 / 0.5)",
       }}
     >
       <div className="flex items-center gap-4">
@@ -741,7 +743,7 @@ function PhotoUpload({
         type="button"
         onClick={() => inputRef.current?.click()}
         className="relative w-28 h-32 rounded-xl overflow-hidden border-2 border-dashed border-border hover:border-primary/50 transition-colors flex-shrink-0 block"
-        style={{ background: "oklch(0.95 0.008 240)" }}
+        style={{ background: "oklch(0.13 0.02 258)" }}
       >
         {preview ? (
           <img
@@ -810,8 +812,8 @@ function DocPhotoUpload({
         onClick={() => inputRef.current?.click()}
         className="relative w-full rounded-xl overflow-hidden border-2 border-dashed hover:border-primary/50 transition-colors block"
         style={{
-          background: "oklch(0.14 0.02 255 / 0.5)",
-          borderColor: "oklch(0.35 0.06 255 / 0.4)",
+          background: "oklch(0.11 0.018 258 / 0.8)",
+          borderColor: "oklch(0.72 0.22 195 / 0.25)",
           aspectRatio: "1.585 / 1",
           maxHeight: "220px",
         }}
@@ -826,11 +828,11 @@ function DocPhotoUpload({
           <div className="flex flex-col items-center justify-center h-full gap-3 py-8">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center"
-              style={{ background: "oklch(0.22 0.055 255 / 0.15)" }}
+              style={{ background: "oklch(0.72 0.22 195 / 0.12)" }}
             >
               <ScanLine
                 className="w-7 h-7"
-                style={{ color: "oklch(0.65 0.12 255)" }}
+                style={{ color: "oklch(0.72 0.22 195)" }}
               />
             </div>
             <div className="text-center">
@@ -1502,8 +1504,8 @@ function CollegeIDForm({
         className="rounded-xl px-4 py-3 flex items-center gap-3 rgb-glow-sm rgb-border"
         style={{
           background:
-            "linear-gradient(135deg, oklch(0.22 0.055 255 / 0.08), oklch(0.32 0.08 260 / 0.05))",
-          border: "1px solid oklch(0.22 0.055 255 / 0.15)",
+            "linear-gradient(135deg, oklch(0.72 0.22 195 / 0.08), oklch(0.65 0.28 300 / 0.05))",
+          border: "1px solid oklch(0.72 0.22 195 / 0.2)",
         }}
       >
         <GraduationCap className="w-5 h-5 text-primary" />
@@ -1617,10 +1619,11 @@ function CollegeIDForm({
         <Button
           onClick={onSubmit}
           disabled={isSubmitting}
-          className="w-full h-12 font-semibold text-base rgb-glow"
+          data-ocid="add_card.college.submit_button"
+          className="w-full h-12 font-semibold text-base btn-auto-glow"
           style={{
             background:
-              "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.32 0.08 260))",
+              "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
             color: "oklch(0.97 0.005 240)",
           }}
         >
@@ -1690,13 +1693,13 @@ function OtherIDForm({
         className="rounded-xl px-4 py-3 flex items-center gap-3 rgb-glow-sm rgb-border"
         style={{
           background:
-            "linear-gradient(135deg, oklch(0.28 0.08 52 / 0.08), oklch(0.35 0.09 55 / 0.05))",
-          border: "1px solid oklch(0.65 0.14 65 / 0.2)",
+            "linear-gradient(135deg, oklch(0.65 0.28 300 / 0.08), oklch(0.72 0.22 195 / 0.05))",
+          border: "1px solid oklch(0.65 0.28 300 / 0.2)",
         }}
       >
         <CreditCard
           className="w-5 h-5"
-          style={{ color: "oklch(0.65 0.14 65)" }}
+          style={{ color: "oklch(0.65 0.28 300)" }}
         />
         <span className="text-sm font-semibold text-foreground">
           {getCategoryLabel(data.idCategory)}
@@ -1765,10 +1768,11 @@ function OtherIDForm({
         <Button
           onClick={onSubmit}
           disabled={isSubmitting}
-          className="w-full h-12 font-semibold text-base rgb-glow"
+          data-ocid="add_card.other.submit_button"
+          className="w-full h-12 font-semibold text-base btn-auto-glow-delay-1"
           style={{
             background:
-              "linear-gradient(135deg, oklch(0.28 0.08 52), oklch(0.38 0.1 55))",
+              "linear-gradient(135deg, oklch(0.2 0.1 280), oklch(0.5 0.25 300))",
             color: "oklch(0.97 0.005 240)",
           }}
         >

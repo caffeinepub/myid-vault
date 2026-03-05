@@ -81,9 +81,12 @@ export default {
       },
       boxShadow: {
         xs: "0 1px 2px 0 rgba(0,0,0,0.05)",
-        card: "0 4px 6px -1px oklch(0.18 0.025 250 / 0.1), 0 12px 28px -8px oklch(0.18 0.025 250 / 0.2)",
+        card: "0 4px 8px -2px oklch(0.05 0.01 260 / 0.8), 0 12px 32px -8px oklch(0.05 0.01 260 / 0.6), 0 0 0 1px oklch(0.22 0.03 260 / 0.8)",
         "card-hover":
-          "0 8px 16px -4px oklch(0.18 0.025 250 / 0.15), 0 20px 40px -12px oklch(0.18 0.025 250 / 0.25)",
+          "0 8px 20px -4px oklch(0.05 0.01 260 / 0.9), 0 24px 48px -12px oklch(0.05 0.01 260 / 0.7), 0 0 0 1px oklch(0.72 0.22 195 / 0.3), 0 0 28px 4px oklch(0.72 0.22 195 / 0.15)",
+        neon: "0 0 12px 3px oklch(0.72 0.22 195 / 0.5), 0 0 28px 6px oklch(0.72 0.22 195 / 0.25)",
+        "neon-violet":
+          "0 0 12px 3px oklch(0.65 0.28 300 / 0.5), 0 0 28px 6px oklch(0.65 0.28 300 / 0.25)",
       },
       keyframes: {
         "accordion-down": {
@@ -102,12 +105,52 @@ export default {
           from: { opacity: "0", transform: "scale(0.95)" },
           to: { opacity: "1", transform: "scale(1)" },
         },
+        "btn-auto-glow": {
+          "0%,35%,75%,100%": { boxShadow: "none", filter: "brightness(1)" },
+          "10%": {
+            boxShadow: "0 0 18px 5px #00ccff66, 0 0 36px 10px #00ccff22",
+            filter: "brightness(1.15)",
+          },
+          "25%": {
+            boxShadow: "0 0 10px 2px #00ccff33",
+            filter: "brightness(1.05)",
+          },
+          "50%": {
+            boxShadow: "0 0 18px 5px #aa00ff66, 0 0 36px 10px #aa00ff22",
+            filter: "brightness(1.15)",
+          },
+          "65%": {
+            boxShadow: "0 0 10px 2px #aa00ff33",
+            filter: "brightness(1.05)",
+          },
+          "88%": {
+            boxShadow: "0 0 18px 5px #00ffaa66, 0 0 36px 10px #00ffaa22",
+            filter: "brightness(1.15)",
+          },
+        },
+        "neon-text-pulse": {
+          "0%,100%": {
+            textShadow: "0 0 8px #00ccff88, 0 0 20px #00ccff44",
+          },
+          "50%": {
+            textShadow: "0 0 14px #aa00ffaa, 0 0 30px #aa00ff55",
+          },
+        },
+        "slide-up-fade": {
+          from: { opacity: "0", transform: "translateY(12px) scale(0.97)" },
+          to: { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-up": "fade-up 0.4s ease-out forwards",
         "scale-in": "scale-in 0.3s ease-out forwards",
+        "btn-auto-glow": "btn-auto-glow 6s ease-in-out infinite",
+        "neon-text": "neon-text-pulse 3s ease-in-out infinite",
+        "rgb-glow": "rgb-glow 3s linear infinite",
+        "slide-up":
+          "slide-up-fade 0.35s cubic-bezier(0.22,1,0.36,1) both",
       },
     },
   },

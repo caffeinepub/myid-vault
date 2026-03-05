@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
+import NeonRainBackground from "./components/NeonRainBackground";
 import { usePasswordAuth } from "./hooks/usePasswordAuth";
 import type { UserSettings } from "./hooks/usePasswordAuth";
 import AddCardPage from "./pages/AddCardPage";
@@ -31,9 +32,10 @@ function PageTransition({
       exit={{ opacity: 0, x: -40, y: -30, scale: 0.93 }}
       transition={{
         type: "spring",
-        stiffness: 320,
-        damping: 28,
-        opacity: { duration: 0.22 },
+        stiffness: 260,
+        damping: 26,
+        mass: 0.9,
+        opacity: { duration: 0.28, ease: [0.22, 1, 0.36, 1] },
       }}
     >
       {children}
@@ -80,49 +82,56 @@ function AuthenticatedApp({
 
   return (
     <div
-      className="min-h-screen bg-background"
-      style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 5rem)" }}
+      className="min-h-screen"
+      style={{
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 5rem)",
+        position: "relative",
+        background: "transparent",
+      }}
     >
-      <Toaster position="top-center" richColors />
+      <NeonRainBackground />
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <Toaster position="top-center" richColors />
 
-      <AnimatePresence mode="wait">
-        {page.type === "home" && (
-          <PageTransition pageKey={pageKey}>
-            <HomePage
-              navigate={navigate}
-              userName={userName}
-              onLogout={handleLogout}
-              hasSecurityQuestion={hasSecurityQuestion}
-            />
-          </PageTransition>
-        )}
-        {page.type === "view" && (
-          <PageTransition pageKey={pageKey}>
-            <CardViewerPage cardId={page.cardId} navigate={navigate} />
-          </PageTransition>
-        )}
-        {page.type === "add" && (
-          <PageTransition pageKey={pageKey}>
-            <AddCardPage navigate={navigate} />
-          </PageTransition>
-        )}
-        {page.type === "edit" && (
-          <PageTransition pageKey={pageKey}>
-            <AddCardPage navigate={navigate} editCardId={page.cardId} />
-          </PageTransition>
-        )}
-        {page.type === "settings" && (
-          <PageTransition pageKey={pageKey}>
-            <SettingsPage
-              navigate={navigate}
-              updateSecurityQuestion={updateSecurityQuestion}
-              updateSettings={updateSettings}
-              getSettings={getSettings}
-              hasSecurityQuestion={hasSecurityQuestion}
-            />
-          </PageTransition>
-        )}
-      </AnimatePresence>
+        <AnimatePresence mode="wait">
+          {page.type === "home" && (
+            <PageTransition pageKey={pageKey}>
+              <HomePage
+                navigate={navigate}
+                userName={userName}
+                onLogout={handleLogout}
+                hasSecurityQuestion={hasSecurityQuestion}
+              />
+            </PageTransition>
+          )}
+          {page.type === "view" && (
+            <PageTransition pageKey={pageKey}>
+              <CardViewerPage cardId={page.cardId} navigate={navigate} />
+            </PageTransition>
+          )}
+          {page.type === "add" && (
+            <PageTransition pageKey={pageKey}>
+              <AddCardPage navigate={navigate} />
+            </PageTransition>
+          )}
+          {page.type === "edit" && (
+            <PageTransition pageKey={pageKey}>
+              <AddCardPage navigate={navigate} editCardId={page.cardId} />
+            </PageTransition>
+          )}
+          {page.type === "settings" && (
+            <PageTransition pageKey={pageKey}>
+              <SettingsPage
+                navigate={navigate}
+                updateSecurityQuestion={updateSecurityQuestion}
+                updateSettings={updateSettings}
+                getSettings={getSettings}
+                hasSecurityQuestion={hasSecurityQuestion}
+              />
+            </PageTransition>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
@@ -146,10 +155,18 @@ export default function App() {
   if (isInitializing) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center bg-background"
-        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 5rem)" }}
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 5rem)",
+          position: "relative",
+          background: "transparent",
+        }}
       >
-        <div className="flex flex-col items-center gap-3">
+        <NeonRainBackground />
+        <div
+          className="flex flex-col items-center gap-3"
+          style={{ position: "relative", zIndex: 1 }}
+        >
           <Loader2 className="w-8 h-8 animate-spin text-primary/60" />
           <p className="text-sm text-muted-foreground">Loading your vault...</p>
         </div>
@@ -160,19 +177,22 @@ export default function App() {
   // Not logged in — show login page
   if (!user) {
     return (
-      <>
-        <Toaster position="top-center" richColors />
-        <div
-          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 5rem)" }}
-        >
-          <LoginPage
-            loginWithPassword={loginWithPassword}
-            signUp={signUp}
-            resetPassword={resetPassword}
-            getSecurityQuestion={getSecurityQuestion}
-          />
+      <div style={{ position: "relative", minHeight: "100dvh" }}>
+        <NeonRainBackground />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <Toaster position="top-center" richColors />
+          <div
+            style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 5rem)" }}
+          >
+            <LoginPage
+              loginWithPassword={loginWithPassword}
+              signUp={signUp}
+              resetPassword={resetPassword}
+              getSecurityQuestion={getSecurityQuestion}
+            />
+          </div>
         </div>
-      </>
+      </div>
     );
   }
 

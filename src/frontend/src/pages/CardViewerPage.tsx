@@ -61,13 +61,14 @@ export default function CardViewerPage({
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="sticky top-0 z-40 bg-background/90 backdrop-blur-sm border-b border-border rgb-glow-sm"
+        className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border rgb-glow-sm"
       >
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <button
             type="button"
+            data-ocid="card_viewer.back.button"
             onClick={() => navigate({ type: "home" })}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors btn-auto-glow-delay-2 rounded-lg px-2 py-1"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
@@ -79,7 +80,8 @@ export default function CardViewerPage({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-1.5 text-xs rgb-glow"
+                  data-ocid="card_viewer.edit.button"
+                  className="gap-1.5 text-xs btn-auto-glow"
                   onClick={() => navigate({ type: "edit", cardId })}
                 >
                   <Edit2 className="w-3.5 h-3.5" />
@@ -90,7 +92,8 @@ export default function CardViewerPage({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="gap-1.5 text-xs border-destructive/40 text-destructive hover:bg-destructive/10 rgb-glow"
+                      data-ocid="card_viewer.delete.button"
+                      className="gap-1.5 text-xs border-destructive/40 text-destructive hover:bg-destructive/10 btn-auto-glow-delay-1"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
@@ -193,28 +196,29 @@ function CollegeIDViewer({
     <motion.div
       initial={{ opacity: 0, rotateY: 15, rotateX: 5, scale: 0.9, y: 30 }}
       animate={{ opacity: 1, rotateY: 0, rotateX: 0, scale: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 260, damping: 24 }}
+      transition={{ type: "spring", stiffness: 240, damping: 22, mass: 0.85 }}
       style={{ perspective: "1000px" }}
     >
       {/* Physical-style ID card */}
       <motion.div
         whileHover={{ scale: 1.01, y: -3 }}
-        transition={{ type: "spring", stiffness: 280, damping: 22 }}
+        transition={{ type: "spring", stiffness: 240, damping: 22, mass: 0.85 }}
         className="rounded-3xl overflow-hidden card-shine noise-overlay relative mx-auto"
         style={{
           background:
-            "linear-gradient(145deg, oklch(0.15 0.055 258) 0%, oklch(0.22 0.07 255) 45%, oklch(0.17 0.06 265) 100%)",
+            "linear-gradient(145deg, oklch(0.10 0.04 255) 0%, oklch(0.15 0.06 240) 45%, oklch(0.11 0.05 258) 100%)",
           boxShadow:
-            "0 8px 20px -4px oklch(0.18 0.025 250 / 0.2), 0 24px 60px -12px oklch(0.18 0.025 250 / 0.3), inset 0 1px 0 oklch(1 0 0 / 0.1)",
+            "0 8px 20px -4px oklch(0.08 0.015 260 / 0.8), 0 24px 60px -12px oklch(0.08 0.015 260 / 0.6), 0 0 0 1px oklch(0.72 0.22 195 / 0.2), 0 0 32px 4px oklch(0.72 0.22 195 / 0.12), inset 0 1px 0 oklch(1 0 0 / 0.08)",
           maxWidth: "420px",
         }}
       >
-        {/* Amber top stripe — continuous shimmer + RGB glow */}
+        {/* Neon cyan top stripe — continuous shimmer + RGB glow */}
         <div
-          className="h-1.5 relative overflow-hidden rgb-glow-sm"
+          className="h-1.5 relative overflow-hidden rgb-glow"
           style={{
             background:
-              "linear-gradient(90deg, oklch(0.72 0.14 65), oklch(0.85 0.18 75), oklch(0.78 0.16 68))",
+              "linear-gradient(90deg, oklch(0.55 0.22 195), oklch(0.72 0.22 195), oklch(0.65 0.28 300), oklch(0.72 0.22 195))",
+            backgroundSize: "200% 100%",
           }}
         >
           <motion.div
@@ -228,7 +232,7 @@ function CollegeIDViewer({
             }}
             style={{
               background:
-                "linear-gradient(90deg, transparent 0%, oklch(1 0 0 / 0.5) 50%, transparent 100%)",
+                "linear-gradient(90deg, transparent 0%, oklch(1 0 0 / 0.6) 50%, transparent 100%)",
               width: "60%",
             }}
           />
@@ -244,11 +248,11 @@ function CollegeIDViewer({
         >
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "oklch(0.78 0.14 65 / 0.2)" }}
+            style={{ background: "oklch(0.72 0.22 195 / 0.15)" }}
           >
             <GraduationCap
               className="w-5 h-5"
-              style={{ color: "oklch(0.85 0.18 75)" }}
+              style={{ color: "oklch(0.72 0.22 195)" }}
             />
           </div>
           <div className="min-w-0">
@@ -260,7 +264,7 @@ function CollegeIDViewer({
             </p>
             <p
               className="text-xs mt-0.5"
-              style={{ color: "oklch(0.78 0.14 65)" }}
+              style={{ color: "oklch(0.72 0.22 195)" }}
             >
               Student Identity Card
             </p>
@@ -276,7 +280,7 @@ function CollegeIDViewer({
         >
           <div
             className="w-24 h-28 rounded-xl overflow-hidden flex-shrink-0 border-2"
-            style={{ borderColor: "oklch(0.78 0.14 65 / 0.5)" }}
+            style={{ borderColor: "oklch(0.72 0.22 195 / 0.5)" }}
           >
             {photoUrl ? (
               <img
@@ -306,7 +310,7 @@ function CollegeIDViewer({
             </p>
             <p
               className="text-sm font-medium mt-1"
-              style={{ color: "oklch(0.78 0.14 65)" }}
+              style={{ color: "oklch(0.72 0.22 195)" }}
             >
               {data.course}
             </p>
@@ -318,11 +322,11 @@ function CollegeIDViewer({
             </p>
             <div
               className="mt-3 px-2.5 py-1 rounded-lg inline-block"
-              style={{ background: "oklch(0.78 0.14 65 / 0.15)" }}
+              style={{ background: "oklch(0.72 0.22 195 / 0.12)" }}
             >
               <p
                 className="text-xs font-mono font-semibold"
-                style={{ color: "oklch(0.85 0.18 75)" }}
+                style={{ color: "oklch(0.72 0.22 195)" }}
               >
                 {data.enrollmentNo}
               </p>
@@ -421,27 +425,28 @@ function OtherIDViewer({
     <motion.div
       initial={{ opacity: 0, rotateY: 15, rotateX: 5, scale: 0.9, y: 30 }}
       animate={{ opacity: 1, rotateY: 0, rotateX: 0, scale: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 260, damping: 24 }}
+      transition={{ type: "spring", stiffness: 240, damping: 22, mass: 0.85 }}
       style={{ perspective: "1000px" }}
     >
       <motion.div
         whileHover={{ scale: 1.01, y: -3 }}
-        transition={{ type: "spring", stiffness: 280, damping: 22 }}
+        transition={{ type: "spring", stiffness: 240, damping: 22, mass: 0.85 }}
         className="rounded-3xl overflow-hidden card-shine noise-overlay relative mx-auto"
         style={{
           background:
-            "linear-gradient(145deg, oklch(0.22 0.08 50) 0%, oklch(0.3 0.09 55) 45%, oklch(0.22 0.07 45) 100%)",
+            "linear-gradient(145deg, oklch(0.10 0.04 285) 0%, oklch(0.14 0.05 300) 45%, oklch(0.10 0.04 280) 100%)",
           boxShadow:
-            "0 8px 20px -4px oklch(0.2 0.04 50 / 0.25), 0 24px 60px -12px oklch(0.2 0.04 50 / 0.35), inset 0 1px 0 oklch(1 0 0 / 0.1)",
+            "0 8px 20px -4px oklch(0.08 0.015 260 / 0.8), 0 24px 60px -12px oklch(0.08 0.015 260 / 0.6), 0 0 0 1px oklch(0.65 0.28 300 / 0.2), 0 0 32px 4px oklch(0.65 0.28 300 / 0.12), inset 0 1px 0 oklch(1 0 0 / 0.08)",
           maxWidth: "420px",
         }}
       >
-        {/* Amber top stripe — continuous shimmer + RGB glow */}
+        {/* Neon violet top stripe — continuous shimmer + RGB glow */}
         <div
-          className="h-1.5 relative overflow-hidden rgb-glow-sm"
+          className="h-1.5 relative overflow-hidden rgb-glow"
           style={{
             background:
-              "linear-gradient(90deg, oklch(0.65 0.14 65), oklch(0.78 0.18 70), oklch(0.72 0.16 66))",
+              "linear-gradient(90deg, oklch(0.5 0.25 300), oklch(0.65 0.28 300), oklch(0.72 0.22 195), oklch(0.65 0.28 300))",
+            backgroundSize: "200% 100%",
           }}
         >
           <motion.div
@@ -455,7 +460,7 @@ function OtherIDViewer({
             }}
             style={{
               background:
-                "linear-gradient(90deg, transparent 0%, oklch(1 0 0 / 0.5) 50%, transparent 100%)",
+                "linear-gradient(90deg, transparent 0%, oklch(1 0 0 / 0.6) 50%, transparent 100%)",
               width: "60%",
             }}
           />
@@ -471,11 +476,11 @@ function OtherIDViewer({
         >
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "oklch(0.72 0.14 65 / 0.2)" }}
+            style={{ background: "oklch(0.65 0.28 300 / 0.15)" }}
           >
             <CreditCard
               className="w-5 h-5"
-              style={{ color: "oklch(0.82 0.18 70)" }}
+              style={{ color: "oklch(0.65 0.28 300)" }}
             />
           </div>
           <div>
@@ -487,7 +492,7 @@ function OtherIDViewer({
             </p>
             <p
               className="text-xs mt-0.5"
-              style={{ color: "oklch(0.72 0.14 65)" }}
+              style={{ color: "oklch(0.65 0.28 300)" }}
             >
               Issued by {data.issuedBy}
             </p>
@@ -503,7 +508,7 @@ function OtherIDViewer({
         >
           <div
             className="w-24 h-28 rounded-xl overflow-hidden flex-shrink-0 border-2"
-            style={{ borderColor: "oklch(0.72 0.14 65 / 0.5)" }}
+            style={{ borderColor: "oklch(0.65 0.28 300 / 0.5)" }}
           >
             {photoUrl ? (
               <img
@@ -539,11 +544,11 @@ function OtherIDViewer({
             </p>
             <div
               className="mt-3 px-2.5 py-1 rounded-lg inline-block"
-              style={{ background: "oklch(0.72 0.14 65 / 0.15)" }}
+              style={{ background: "oklch(0.65 0.28 300 / 0.12)" }}
             >
               <p
                 className="text-xs font-mono font-semibold"
-                style={{ color: "oklch(0.82 0.18 70)" }}
+                style={{ color: "oklch(0.65 0.28 300)" }}
               >
                 {data.idNumber}
               </p>

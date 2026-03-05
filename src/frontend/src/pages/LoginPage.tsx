@@ -85,16 +85,16 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
             animate={{
               background:
                 i + 1 <= current
-                  ? "oklch(0.38 0.1 265)"
-                  : "oklch(0.85 0.015 250)",
+                  ? "oklch(0.65 0.22 195)"
+                  : "oklch(0.18 0.025 260)",
               scale: i + 1 === current ? 1.15 : 1,
             }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.32 }}
             className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
             style={{
               color:
                 i + 1 <= current
-                  ? "oklch(0.97 0.005 240)"
+                  ? "oklch(0.08 0.015 260)"
                   : "oklch(0.55 0.03 250)",
             }}
           >
@@ -105,8 +105,8 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
               animate={{
                 background:
                   i + 1 < current
-                    ? "oklch(0.38 0.1 265)"
-                    : "oklch(0.85 0.015 250)",
+                    ? "oklch(0.65 0.22 195)"
+                    : "oklch(0.18 0.025 260)",
               }}
               className="h-0.5 w-6 rounded-full"
               transition={{ duration: 0.3 }}
@@ -337,33 +337,10 @@ export default function LoginPage({
     step === forgotStep ? 0 : step < forgotStep ? -30 : 30;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-background">
-      {/* Atmospheric background */}
-      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full opacity-20 blur-3xl"
-          style={{
-            background:
-              "radial-gradient(ellipse, oklch(0.55 0.18 255) 0%, transparent 70%)",
-          }}
-        />
-        <div
-          className="absolute bottom-0 right-0 w-[400px] h-[300px] rounded-full opacity-10 blur-3xl"
-          style={{
-            background:
-              "radial-gradient(ellipse, oklch(0.72 0.14 65) 0%, transparent 70%)",
-          }}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage:
-              "linear-gradient(oklch(0.22 0.055 255) 1px, transparent 1px), linear-gradient(90deg, oklch(0.22 0.055 255) 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        />
-      </div>
-
+    <div
+      className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden"
+      style={{ background: "transparent" }}
+    >
       <main className="relative z-10 w-full max-w-sm mx-auto px-6 flex flex-col items-center text-center">
         {/* Logo + branding */}
         <motion.div
@@ -384,13 +361,17 @@ export default function LoginPage({
               className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-lg rgb-glow"
               style={{
                 background:
-                  "linear-gradient(135deg, oklch(0.22 0.055 255) 0%, oklch(0.38 0.1 265) 100%)",
+                  "linear-gradient(135deg, oklch(0.15 0.08 220) 0%, oklch(0.72 0.22 195 / 0.8) 100%)",
+                boxShadow: "0 0 32px 8px oklch(0.72 0.22 195 / 0.4)",
               }}
             >
-              <Wallet className="w-9 h-9 text-white" />
+              <Wallet
+                className="w-9 h-9"
+                style={{ color: "oklch(0.97 0.005 240)" }}
+              />
             </div>
           </motion.div>
-          <h1 className="text-4xl font-display font-bold text-foreground tracking-tight">
+          <h1 className="text-4xl font-display font-bold text-foreground tracking-tight neon-text">
             MyID Vault
           </h1>
           <p className="text-muted-foreground text-base mt-2 leading-relaxed">
@@ -408,12 +389,12 @@ export default function LoginPage({
             damping: 22,
             delay: 0.15,
           }}
-          className={`w-full rounded-3xl border border-border bg-card overflow-hidden rgb-glow-sm rgb-border ${
+          className={`w-full rounded-3xl border bg-card overflow-hidden rgb-glow-sm rgb-border ${
             shakeError ? "animate-shake" : ""
           }`}
           style={{
             boxShadow:
-              "0 4px 6px -1px oklch(0.18 0.025 250 / 0.06), 0 16px 48px -12px oklch(0.18 0.025 250 / 0.12)",
+              "0 4px 24px -4px oklch(0.08 0.015 260 / 0.8), 0 0 0 1px oklch(0.22 0.03 260 / 0.8), 0 0 32px 4px oklch(0.72 0.22 195 / 0.08)",
           }}
         >
           {/* Tab switcher — hidden during forgot flow */}
@@ -425,7 +406,7 @@ export default function LoginPage({
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.22 }}
                 className="relative flex border-b border-border"
-                style={{ background: "oklch(0.96 0.008 240 / 0.5)" }}
+                style={{ background: "oklch(0.09 0.015 260 / 0.8)" }}
               >
                 {/* Sliding indicator */}
                 <motion.div
@@ -467,9 +448,9 @@ export default function LoginPage({
               <div
                 className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold"
                 style={{
-                  background: "oklch(0.22 0.055 255 / 0.08)",
-                  color: "oklch(0.35 0.08 255)",
-                  border: "1px solid oklch(0.22 0.055 255 / 0.15)",
+                  background: "oklch(0.72 0.22 195 / 0.1)",
+                  color: "oklch(0.72 0.22 195)",
+                  border: "1px solid oklch(0.72 0.22 195 / 0.25)",
                 }}
               >
                 <Shield className="w-3 h-3" />
@@ -485,7 +466,7 @@ export default function LoginPage({
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                   onSubmit={handleLogin}
                   className="space-y-4"
                 >
@@ -583,10 +564,10 @@ export default function LoginPage({
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-11 text-base font-semibold rounded-xl rgb-glow mt-2"
+                    className="w-full h-11 text-base font-semibold rounded-xl btn-auto-glow mt-2"
                     style={{
                       background:
-                        "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
+                        "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
                       color: "oklch(0.97 0.005 240)",
                     }}
                   >
@@ -626,7 +607,7 @@ export default function LoginPage({
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                   onSubmit={handleSignup}
                   className="space-y-4"
                 >
@@ -876,10 +857,10 @@ export default function LoginPage({
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-11 text-base font-semibold rounded-xl rgb-glow mt-2"
+                    className="w-full h-11 text-base font-semibold rounded-xl btn-auto-glow-delay-1 mt-2"
                     style={{
                       background:
-                        "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
+                        "linear-gradient(135deg, oklch(0.2 0.1 280), oklch(0.5 0.25 300))",
                       color: "oklch(0.97 0.005 240)",
                     }}
                   >
@@ -928,12 +909,12 @@ export default function LoginPage({
                       <div
                         className="w-7 h-7 rounded-lg flex items-center justify-center"
                         style={{
-                          background: "oklch(0.38 0.1 265 / 0.12)",
+                          background: "oklch(0.72 0.22 195 / 0.12)",
                         }}
                       >
                         <KeyRound
                           className="w-3.5 h-3.5"
-                          style={{ color: "oklch(0.38 0.1 265)" }}
+                          style={{ color: "oklch(0.72 0.22 195)" }}
                         />
                       </div>
                       <h2 className="text-xl font-semibold text-foreground">
@@ -997,10 +978,10 @@ export default function LoginPage({
 
                         <Button
                           type="submit"
-                          className="w-full h-11 text-base font-semibold rounded-xl rgb-glow"
+                          className="w-full h-11 text-base font-semibold rounded-xl btn-auto-glow"
                           style={{
                             background:
-                              "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
+                              "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
                             color: "oklch(0.97 0.005 240)",
                           }}
                         >
@@ -1030,9 +1011,9 @@ export default function LoginPage({
                         <div
                           className="rounded-xl px-4 py-3 text-sm font-medium text-left"
                           style={{
-                            background: "oklch(0.38 0.1 265 / 0.08)",
-                            border: "1px solid oklch(0.38 0.1 265 / 0.2)",
-                            color: "oklch(0.28 0.07 265)",
+                            background: "oklch(0.65 0.28 300 / 0.08)",
+                            border: "1px solid oklch(0.65 0.28 300 / 0.25)",
+                            color: "oklch(0.8 0.15 300)",
                           }}
                         >
                           <p className="text-xs uppercase tracking-wide font-semibold mb-1 opacity-70">
@@ -1068,10 +1049,10 @@ export default function LoginPage({
 
                         <Button
                           type="submit"
-                          className="w-full h-11 text-base font-semibold rounded-xl rgb-glow"
+                          className="w-full h-11 text-base font-semibold rounded-xl btn-auto-glow-delay-1"
                           style={{
                             background:
-                              "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
+                              "linear-gradient(135deg, oklch(0.2 0.1 280), oklch(0.5 0.25 300))",
                             color: "oklch(0.97 0.005 240)",
                           }}
                         >
@@ -1172,10 +1153,10 @@ export default function LoginPage({
                         <Button
                           type="submit"
                           disabled={isSubmitting}
-                          className="w-full h-11 text-base font-semibold rounded-xl rgb-glow"
+                          className="w-full h-11 text-base font-semibold rounded-xl btn-auto-glow-delay-2"
                           style={{
                             background:
-                              "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
+                              "linear-gradient(135deg, oklch(0.15 0.08 155), oklch(0.5 0.2 160))",
                             color: "oklch(0.97 0.005 240)",
                           }}
                         >
@@ -1215,9 +1196,21 @@ export default function LoginPage({
           className="mt-8 grid grid-cols-3 gap-4 w-full"
         >
           {[
-            { label: "Offline Ready", desc: "Access IDs anytime" },
-            { label: "Private", desc: "Only you can see it" },
-            { label: "Secure", desc: "Encrypted storage" },
+            {
+              label: "Offline Ready",
+              desc: "Access IDs anytime",
+              color: "oklch(0.72 0.22 195)",
+            },
+            {
+              label: "Private",
+              desc: "Only you can see it",
+              color: "oklch(0.65 0.28 300)",
+            },
+            {
+              label: "Secure",
+              desc: "Encrypted storage",
+              color: "oklch(0.75 0.2 160)",
+            },
           ].map((f, i) => (
             <motion.div
               key={f.label}
@@ -1226,7 +1219,9 @@ export default function LoginPage({
               transition={{ delay: 0.75 + i * 0.07 }}
               className="text-center"
             >
-              <p className="text-xs font-semibold text-foreground">{f.label}</p>
+              <p className="text-xs font-semibold" style={{ color: f.color }}>
+                {f.label}
+              </p>
               <p className="text-xs text-muted-foreground mt-0.5">{f.desc}</p>
             </motion.div>
           ))}

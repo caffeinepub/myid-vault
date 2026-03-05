@@ -8,8 +8,11 @@ import {
   Eye,
   EyeOff,
   HelpCircle,
+  Instagram,
   Loader2,
   Lock,
+  Mail,
+  MessageCircle,
   Monitor,
   Moon,
   Settings,
@@ -162,7 +165,7 @@ export default function SettingsPage({
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-sm border-b border-border rgb-glow-sm">
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border rgb-glow-sm">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
           <motion.button
             type="button"
@@ -170,7 +173,7 @@ export default function SettingsPage({
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3 }}
-            className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors rgb-glow-sm"
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors btn-auto-glow-delay-2"
             aria-label="Back to home"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -186,10 +189,14 @@ export default function SettingsPage({
               className="w-8 h-8 rounded-lg flex items-center justify-center rgb-glow-sm"
               style={{
                 background:
-                  "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
+                  "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
+                boxShadow: "0 0 10px 2px oklch(0.72 0.22 195 / 0.25)",
               }}
             >
-              <Settings className="w-4 h-4 text-white" />
+              <Settings
+                className="w-4 h-4"
+                style={{ color: "oklch(0.97 0.005 240)" }}
+              />
             </div>
             <h1 className="text-base font-display font-bold text-foreground leading-none">
               Settings
@@ -205,8 +212,9 @@ export default function SettingsPage({
           animate={{ opacity: 1, y: 0 }}
           transition={{
             type: "spring",
-            stiffness: 300,
-            damping: 26,
+            stiffness: 240,
+            damping: 22,
+            mass: 0.85,
             delay: 0.05,
           }}
           className="rounded-2xl border border-border bg-card overflow-hidden rgb-glow-sm"
@@ -214,15 +222,15 @@ export default function SettingsPage({
           {/* Section header */}
           <div
             className="px-5 py-4 border-b border-border flex items-center gap-3"
-            style={{ background: "oklch(0.22 0.055 255 / 0.04)" }}
+            style={{ background: "oklch(0.72 0.22 195 / 0.04)" }}
           >
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "oklch(0.22 0.055 255 / 0.12)" }}
+              style={{ background: "oklch(0.72 0.22 195 / 0.12)" }}
             >
               <Shield
                 className="w-4 h-4"
-                style={{ color: "oklch(0.38 0.1 265)" }}
+                style={{ color: "oklch(0.72 0.22 195)" }}
               />
             </div>
             <div>
@@ -250,9 +258,9 @@ export default function SettingsPage({
                     exit={{ opacity: 0, scale: 0.85 }}
                     className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
                     style={{
-                      background: "oklch(0.55 0.16 145 / 0.12)",
-                      color: "oklch(0.38 0.12 145)",
-                      border: "1px solid oklch(0.55 0.16 145 / 0.25)",
+                      background: "oklch(0.72 0.22 195 / 0.12)",
+                      color: "oklch(0.72 0.22 195)",
+                      border: "1px solid oklch(0.72 0.22 195 / 0.3)",
                     }}
                   >
                     <ShieldCheck className="w-3 h-3" />
@@ -266,9 +274,9 @@ export default function SettingsPage({
                     exit={{ opacity: 0, scale: 0.85 }}
                     className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
                     style={{
-                      background: "oklch(0.7 0.18 55 / 0.12)",
-                      color: "oklch(0.5 0.15 55)",
-                      border: "1px solid oklch(0.7 0.18 55 / 0.3)",
+                      background: "oklch(0.62 0.26 25 / 0.12)",
+                      color: "oklch(0.72 0.2 25)",
+                      border: "1px solid oklch(0.62 0.26 25 / 0.3)",
                     }}
                   >
                     <HelpCircle className="w-3 h-3" />
@@ -281,7 +289,7 @@ export default function SettingsPage({
             {/* Divider */}
             <div
               className="h-px w-full rgb-glow-sm"
-              style={{ background: "oklch(0.88 0.015 240)" }}
+              style={{ background: "oklch(0.22 0.03 260)" }}
             />
 
             {/* Success indicator */}
@@ -293,9 +301,9 @@ export default function SettingsPage({
                   exit={{ opacity: 0, height: 0 }}
                   className="rounded-xl px-4 py-3 flex items-center gap-2 text-sm font-medium"
                   style={{
-                    background: "oklch(0.55 0.16 145 / 0.1)",
-                    border: "1px solid oklch(0.55 0.16 145 / 0.25)",
-                    color: "oklch(0.38 0.12 145)",
+                    background: "oklch(0.72 0.22 195 / 0.1)",
+                    border: "1px solid oklch(0.72 0.22 195 / 0.3)",
+                    color: "oklch(0.72 0.22 195)",
                   }}
                 >
                   <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
@@ -436,10 +444,11 @@ export default function SettingsPage({
               <Button
                 type="submit"
                 disabled={isSavingSec}
-                className="w-full h-10 text-sm font-semibold rounded-xl rgb-glow"
+                data-ocid="settings.security.submit_button"
+                className="w-full h-10 text-sm font-semibold rounded-xl btn-auto-glow"
                 style={{
                   background:
-                    "linear-gradient(135deg, oklch(0.22 0.055 255), oklch(0.38 0.1 265))",
+                    "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
                   color: "oklch(0.97 0.005 240)",
                 }}
               >
@@ -464,8 +473,9 @@ export default function SettingsPage({
           animate={{ opacity: 1, y: 0 }}
           transition={{
             type: "spring",
-            stiffness: 300,
-            damping: 26,
+            stiffness: 240,
+            damping: 22,
+            mass: 0.85,
             delay: 0.12,
           }}
           className="rounded-2xl border border-border bg-card overflow-hidden rgb-glow-sm"
@@ -473,15 +483,15 @@ export default function SettingsPage({
           {/* Section header */}
           <div
             className="px-5 py-4 border-b border-border flex items-center gap-3"
-            style={{ background: "oklch(0.22 0.055 255 / 0.04)" }}
+            style={{ background: "oklch(0.65 0.28 300 / 0.04)" }}
           >
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "oklch(0.22 0.055 255 / 0.12)" }}
+              style={{ background: "oklch(0.65 0.28 300 / 0.12)" }}
             >
               <Settings
                 className="w-4 h-4"
-                style={{ color: "oklch(0.38 0.1 265)" }}
+                style={{ color: "oklch(0.65 0.28 300)" }}
               />
             </div>
             <div>
@@ -519,9 +529,9 @@ export default function SettingsPage({
                       theme === opt.value
                         ? {
                             background:
-                              "linear-gradient(135deg, oklch(0.22 0.055 255 / 0.1), oklch(0.38 0.1 265 / 0.06))",
-                            border: "1.5px solid oklch(0.38 0.1 265 / 0.5)",
-                            color: "oklch(0.28 0.07 265)",
+                              "linear-gradient(135deg, oklch(0.72 0.22 195 / 0.1), oklch(0.65 0.28 300 / 0.06))",
+                            border: "1.5px solid oklch(0.72 0.22 195 / 0.5)",
+                            color: "oklch(0.72 0.22 195)",
                           }
                         : {}
                     }
@@ -532,7 +542,7 @@ export default function SettingsPage({
                       <motion.div
                         layoutId="theme-active"
                         className="w-1.5 h-1.5 rounded-full"
-                        style={{ background: "oklch(0.38 0.1 265)" }}
+                        style={{ background: "oklch(0.72 0.22 195)" }}
                       />
                     )}
                   </motion.button>
@@ -543,7 +553,7 @@ export default function SettingsPage({
             {/* Divider */}
             <div
               className="h-px w-full rgb-glow-sm"
-              style={{ background: "oklch(0.88 0.015 240)" }}
+              style={{ background: "oklch(0.22 0.03 260)" }}
             />
 
             {/* Auto-lock toggle */}
@@ -565,6 +575,147 @@ export default function SettingsPage({
                 aria-label="Auto-lock on tab close"
               />
             </div>
+          </div>
+        </motion.section>
+
+        {/* ── Section 3: Contact Us ── */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            type: "spring",
+            stiffness: 240,
+            damping: 22,
+            mass: 0.85,
+            delay: 0.19,
+          }}
+          className="rounded-2xl border border-border bg-card overflow-hidden rgb-glow-sm"
+          data-ocid="settings.contact.section"
+        >
+          {/* Section header */}
+          <div
+            className="px-5 py-4 border-b border-border flex items-center gap-3"
+            style={{ background: "oklch(0.72 0.22 130 / 0.04)" }}
+          >
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "oklch(0.72 0.22 130 / 0.12)" }}
+            >
+              <MessageCircle
+                className="w-4 h-4"
+                style={{ color: "oklch(0.72 0.22 130)" }}
+              />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Contact Us
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Reach out via WhatsApp, Email, or Instagram
+              </p>
+            </div>
+          </div>
+
+          <div className="p-5 space-y-3">
+            {/* WhatsApp */}
+            <motion.a
+              href="https://wa.me/917309227544"
+              target="_blank"
+              rel="noopener noreferrer"
+              whileTap={{ scale: 0.97 }}
+              whileHover={{ scale: 1.01 }}
+              data-ocid="settings.contact.whatsapp.button"
+              className="flex items-center gap-4 w-full px-4 py-3 rounded-xl border border-border bg-background hover:border-green-500/40 transition-all group btn-auto-glow-delay-1"
+              style={{}}
+            >
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all group-hover:scale-110"
+                style={{
+                  background: "oklch(0.55 0.22 145 / 0.15)",
+                  border: "1px solid oklch(0.55 0.22 145 / 0.3)",
+                }}
+              >
+                <MessageCircle
+                  className="w-4 h-4"
+                  style={{ color: "oklch(0.65 0.22 145)" }}
+                />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-semibold text-foreground">
+                  WhatsApp
+                </p>
+                <p className="text-xs text-muted-foreground">+91 7309227544</p>
+              </div>
+              <div className="text-muted-foreground group-hover:text-foreground transition-colors text-xs font-medium">
+                Chat →
+              </div>
+            </motion.a>
+
+            {/* Email */}
+            <motion.a
+              href="mailto:mkumargkp111@gmail.com"
+              whileTap={{ scale: 0.97 }}
+              whileHover={{ scale: 1.01 }}
+              data-ocid="settings.contact.email.button"
+              className="flex items-center gap-4 w-full px-4 py-3 rounded-xl border border-border bg-background hover:border-blue-500/40 transition-all group btn-auto-glow-delay-2"
+            >
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all group-hover:scale-110"
+                style={{
+                  background: "oklch(0.60 0.22 240 / 0.15)",
+                  border: "1px solid oklch(0.60 0.22 240 / 0.3)",
+                }}
+              >
+                <Mail
+                  className="w-4 h-4"
+                  style={{ color: "oklch(0.65 0.22 240)" }}
+                />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-semibold text-foreground">Email</p>
+                <p className="text-xs text-muted-foreground">
+                  mkumargkp111@gmail.com
+                </p>
+              </div>
+              <div className="text-muted-foreground group-hover:text-foreground transition-colors text-xs font-medium">
+                Write →
+              </div>
+            </motion.a>
+
+            {/* Instagram */}
+            <motion.a
+              href="https://www.instagram.com/er._ankush__singh?igsh=MXJoOW5lYzdrbnM2bg=="
+              target="_blank"
+              rel="noopener noreferrer"
+              whileTap={{ scale: 0.97 }}
+              whileHover={{ scale: 1.01 }}
+              data-ocid="settings.contact.instagram.button"
+              className="flex items-center gap-4 w-full px-4 py-3 rounded-xl border border-border bg-background hover:border-pink-500/40 transition-all group btn-auto-glow-delay-3"
+            >
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all group-hover:scale-110"
+                style={{
+                  background: "oklch(0.60 0.28 350 / 0.15)",
+                  border: "1px solid oklch(0.60 0.28 350 / 0.3)",
+                }}
+              >
+                <Instagram
+                  className="w-4 h-4"
+                  style={{ color: "oklch(0.65 0.28 350)" }}
+                />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-semibold text-foreground">
+                  Instagram
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  @er._ankush__singh
+                </p>
+              </div>
+              <div className="text-muted-foreground group-hover:text-foreground transition-colors text-xs font-medium">
+                Follow →
+              </div>
+            </motion.a>
           </div>
         </motion.section>
       </main>
