@@ -18,8 +18,8 @@ interface StoredAccount {
 }
 
 export interface BackgroundSetting {
-  type: "neon" | "preset" | "custom";
-  value?: string; // preset key OR base64 data URL for custom
+  type: "neon" | "preset" | "custom" | "video";
+  value?: string; // preset key, base64 data URL for custom, or video key for video
 }
 
 export interface UserSettings {
@@ -82,15 +82,23 @@ function loadSettings(username: string): UserSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY_PREFIX + username);
     if (!raw)
-      return { theme: "system", autoLock: false, background: { type: "neon" } };
+      return {
+        theme: "system",
+        autoLock: false,
+        background: { type: "preset", value: "aurora" },
+      };
     const parsed = JSON.parse(raw) as Partial<UserSettings>;
     return {
       theme: parsed.theme ?? "system",
       autoLock: parsed.autoLock ?? false,
-      background: parsed.background ?? { type: "neon" },
+      background: parsed.background ?? { type: "preset", value: "aurora" },
     };
   } catch {
-    return { theme: "system", autoLock: false, background: { type: "neon" } };
+    return {
+      theme: "system",
+      autoLock: false,
+      background: { type: "preset", value: "aurora" },
+    };
   }
 }
 
@@ -254,7 +262,11 @@ export function usePasswordAuth() {
   // Get settings for current user
   const getSettings = useCallback((): UserSettings => {
     if (!user)
-      return { theme: "system", autoLock: false, background: { type: "neon" } };
+      return {
+        theme: "system",
+        autoLock: false,
+        background: { type: "preset", value: "aurora" },
+      };
     return loadSettings(user.username);
   }, [user]);
 

@@ -102,7 +102,7 @@ export default function SettingsPage({
 
   // Background state
   const [currentBg, setCurrentBg] = useState<BackgroundSetting>(
-    settings.background ?? { type: "neon" },
+    settings.background ?? { type: "preset", value: "aurora" },
   );
   const [customPreviewUrl, setCustomPreviewUrl] = useState<string | null>(
     settings.background?.type === "custom"
@@ -114,9 +114,10 @@ export default function SettingsPage({
   interface BgPreset {
     key: string;
     label: string;
-    type: "neon" | "preset";
+    type: "neon" | "preset" | "video";
     value?: string;
     thumbnail?: string;
+    isVideo?: boolean;
   }
 
   const BG_PRESETS: BgPreset[] = [
@@ -158,8 +159,57 @@ export default function SettingsPage({
     },
   ];
 
+  const VIDEO_PRESETS: BgPreset[] = [
+    {
+      key: "rain-window",
+      label: "Rainy Window",
+      type: "video",
+      value: "rain-window",
+      isVideo: true,
+    },
+    {
+      key: "northern-lights",
+      label: "Northern Lights",
+      type: "video",
+      value: "northern-lights",
+      isVideo: true,
+    },
+    {
+      key: "ocean-waves",
+      label: "Ocean Waves",
+      type: "video",
+      value: "ocean-waves",
+      isVideo: true,
+    },
+    {
+      key: "stars-sky",
+      label: "Starry Sky",
+      type: "video",
+      value: "stars-sky",
+      isVideo: true,
+    },
+    {
+      key: "city-lights",
+      label: "City Lights",
+      type: "video",
+      value: "city-lights",
+      isVideo: true,
+    },
+  ];
+
+  // Video icon color map
+  const VIDEO_COLORS: Record<string, string> = {
+    "rain-window": "oklch(0.65 0.16 220)",
+    "northern-lights": "oklch(0.72 0.18 150)",
+    "ocean-waves": "oklch(0.65 0.2 200)",
+    "stars-sky": "oklch(0.7 0.14 280)",
+    "city-lights": "oklch(0.72 0.18 50)",
+  };
+
   const isPresetActive = (preset: BgPreset): boolean => {
     if (preset.type === "neon") return currentBg.type === "neon";
+    if (preset.type === "video")
+      return currentBg.type === "video" && currentBg.value === preset.value;
     return currentBg.type === "preset" && currentBg.value === preset.value;
   };
 
@@ -167,7 +217,9 @@ export default function SettingsPage({
     const newBg: BackgroundSetting =
       preset.type === "neon"
         ? { type: "neon" }
-        : { type: "preset", value: preset.value };
+        : preset.type === "video"
+          ? { type: "video", value: preset.value }
+          : { type: "preset", value: preset.value };
     setCurrentBg(newBg);
     setCustomPreviewUrl(null);
     updateSettings({ background: newBg });
@@ -835,6 +887,117 @@ export default function SettingsPage({
                   </motion.button>
                 );
               })}
+            </div>
+
+            {/* Divider */}
+            <div
+              className="h-px w-full"
+              style={{ background: "oklch(0.22 0.03 260)" }}
+            />
+
+            {/* Live Video Wallpapers */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Live Video Wallpapers
+                </p>
+                <span
+                  className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
+                  style={{
+                    background: "oklch(0.55 0.22 270 / 0.18)",
+                    color: "oklch(0.72 0.18 270)",
+                    border: "1px solid oklch(0.55 0.22 270 / 0.3)",
+                  }}
+                >
+                  LIVE
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {VIDEO_PRESETS.map((preset, idx) => {
+                  const active = isPresetActive(preset);
+                  const color =
+                    VIDEO_COLORS[preset.value ?? ""] ?? "oklch(0.65 0.15 260)";
+                  return (
+                    <motion.button
+                      key={preset.key}
+                      type="button"
+                      whileTap={{ scale: 0.97 }}
+                      whileHover={{ scale: 1.01 }}
+                      onClick={() => handleSelectPreset(preset)}
+                      data-ocid={`settings.background.video.item.${idx + 1}`}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left"
+                      style={{
+                        border: active
+                          ? `1.5px solid ${color}`
+                          : "1.5px solid oklch(0.22 0.03 260 / 0.8)",
+                        background: active
+                          ? "oklch(0.12 0.03 260 / 0.8)"
+                          : "oklch(0.10 0.02 260 / 0.5)",
+                        boxShadow: active ? `0 0 10px 1px ${color}55` : "none",
+                        transition: "border-color 0.2s, box-shadow 0.2s",
+                      }}
+                      aria-pressed={active}
+                      aria-label={`Select ${preset.label} live wallpaper`}
+                    >
+                      {/* Animated video icon */}
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{
+                          background: `${color}22`,
+                          border: `1px solid ${color}44`,
+                        }}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke={color}
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-label="Video wallpaper"
+                          role="img"
+                        >
+                          <polygon points="23 7 16 12 23 17 23 7" />
+                          <rect
+                            x="1"
+                            y="5"
+                            width="15"
+                            height="14"
+                            rx="2"
+                            ry="2"
+                          />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          {preset.label}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Looping ambient video
+                        </p>
+                      </div>
+                      {active && (
+                        <motion.div
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{
+                            background: color,
+                            boxShadow: `0 0 6px 1px ${color}88`,
+                          }}
+                        >
+                          <Check
+                            className="w-3 h-3"
+                            style={{ color: "oklch(0.1 0.02 260)" }}
+                          />
+                        </motion.div>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Divider */}
