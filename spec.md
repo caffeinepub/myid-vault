@@ -1,53 +1,47 @@
 # MyID Vault
 
 ## Current State
-- Add ID flow has two category types: "College Student ID" and "Other ID"
-- "Other ID" has a plain text input for ID Type (free text like "Passport", "Aadhaar", etc.)
-- ID Number field is a generic text input labeled "ID Number" across all other ID types
-- Each ID category (college, other) shows a photo upload for the person's profile photo
-- No option to upload a photo/scan of the document itself
+- Full-stack ID vault app with multi-user local auth (username + password)
+- Background is `NeonRainBackground` -- a hardcoded CSS animated neon rain beams component used in all screens (login, loading, and authenticated pages)
+- `UserSettings` in `usePasswordAuth.ts` stores `theme` and `autoLock` per user
+- `SettingsPage` has Account Security, Preferences (theme + auto-lock), and Contact Us sections
+- App.tsx renders `NeonRainBackground` in all states (loading, login, authenticated)
 
 ## Requested Changes (Diff)
 
 ### Add
-- Dropdown list for ID category selection in the "Other ID" flow, with these categories:
-  - Aadhaar Card
-  - PAN Card
-  - Passport
-  - Driving Licence
-  - Voter ID
-  - College ID (student ID for college)
-  - School ID
-- Each category shows its own set of relevant fields:
-  - **Aadhaar Card**: Aadhar No. (12-digit), Full Name, DOB, Address (optional)
-  - **PAN Card**: PAN No., Full Name, DOB, Father's Name
-  - **Passport**: Passport No., Full Name, DOB, Issue Date, Expiry Date, Issued By, Nationality
-  - **Driving Licence**: Licence No., Full Name, DOB, Issue Date, Expiry Date, Vehicle Class, Issued By (RTO)
-  - **Voter ID**: Voter ID No., Full Name, DOB, Father's/Husband's Name, Address (optional)
-  - **College ID**: Full Name, Enrollment/Roll No., Course, Branch, College Name, Academic Year, Valid Until
-  - **School ID**: Full Name, Roll No., Class/Grade, School Name, Academic Year, Valid Until
-- "Upload Document Photo" option (separate from profile photo) -- a second photo upload field labeled "Document Photo" for uploading a scan or photo of the physical document
+- **5 preset background images** (already generated):
+  - Galaxy (`/assets/generated/bg-galaxy.dim_1080x1920.jpg`)
+  - Abstract Waves (`/assets/generated/bg-waves.dim_1080x1920.jpg`)
+  - City Night (`/assets/generated/bg-city.dim_1080x1920.jpg`)
+  - Nature (`/assets/generated/bg-nature.dim_1080x1920.jpg`)
+  - Aurora (`/assets/generated/bg-aurora.dim_1080x1920.jpg`)
+- **"Background" section in SettingsPage** with:
+  - A grid of preset thumbnail cards (5 presets + "Custom" option)
+  - A "Upload from Gallery" button to pick an image from the device (stored as base64 in localStorage per user)
+  - Currently active background highlighted with a checkmark
+- **`AppBackground` component** replacing `NeonRainBackground` everywhere:
+  - Reads current user's background setting
+  - If `type: "neon"` (default) → renders existing `NeonRainBackground`
+  - If `type: "preset"` with a preset key → renders that preset image as a fixed full-screen background with `object-fit: cover`
+  - If `type: "custom"` → renders the user's uploaded base64 image as a fixed full-screen background
+- **`background` field in `UserSettings`** to persist per-user choice
 
 ### Modify
-- Replace the free-text "ID Type" input in OtherIDForm with a styled dropdown (select) that lists the above categories
-- For Aadhaar category: replace "ID Number" label with "Aadhar No." and apply 12-digit numeric hint
-- "Choose ID Type" step now shows the dropdown in the form instead of a separate card for "Other"
-- The category selection on the home "choose type" screen can remain simple (College Student vs Other ID), but the "Other ID" form now has a dropdown
-- Add a second photo upload area in both College ID and Other ID forms, labeled "Document Photo" (scan of the physical card)
+- `usePasswordAuth.ts` -- extend `UserSettings` to include `background: { type: 'neon' | 'preset' | 'custom'; value?: string }` and default to `{ type: 'neon' }`
+- `App.tsx` -- replace `NeonRainBackground` with `AppBackground` component, pass current user username so it can read background setting; on login screen use a neutral default since there's no user yet
+- `SettingsPage.tsx` -- add a new "Background" section (between Preferences and Contact Us) with preset grid and upload button
 
 ### Remove
-- Free-text ID Type input replaced by dropdown
+- Nothing removed (NeonRainBackground component kept as it is still used for the default)
 
 ## Implementation Plan
-1. Update `OtherFormData` interface to add `documentPhotoFile` and `documentPhotoPreview` fields
-2. Update `CollegeFormData` interface to add `documentPhotoFile` and `documentPhotoPreview` fields
-3. Create a `ID_CATEGORIES` config object mapping each category to its specific fields config
-4. Replace the "ID Type" text input in `OtherIDForm` with a `<select>` dropdown listing all categories
-5. Render category-specific fields dynamically based on selected category
-6. For Aadhaar: show "Aadhar No." label instead of "ID Number"
-7. Add a `DocumentPhotoUpload` component (reuse PhotoUpload with different label "Document Photo")
-8. Add Document Photo upload to CollegeIDForm and OtherIDForm
-9. Store document photo in the existing `photo` field or handle as a second blob -- since backend only supports one photo per card, store document photo using the same ExternalBlob mechanism; the existing `photo` field on backend will hold the profile photo, and document photo will be a second upload stored client-side in form state (passed as a separate ExternalBlob)
-10. Update submit handlers to handle the document photo field (pass to backend using existing `photo` param as document scan if no profile photo, or consider field reuse)
-11. Update CardViewerPage to display document photo if present (show as "Document Scan" section below the card)
-12. Run typecheck and lint to ensure no errors
+1. Extend `UserSettings` in `usePasswordAuth.ts` to include background field with default `{ type: 'neon' }`
+2. Create `AppBackground.tsx` component that reads background from localStorage for the current user and renders accordingly
+3. Update `App.tsx` to use `AppBackground` instead of `NeonRainBackground`, passing the username
+4. Add "Background" section to `SettingsPage.tsx`:
+   - Preset grid (5 presets with thumbnail images + "Default Neon" option)
+   - Upload from gallery button (file input, stores base64 in localStorage)
+   - Active state indicator on selected background
+   - Calls `updateSettings` when changed
+5. Validate and build

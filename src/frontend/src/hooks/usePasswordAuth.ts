@@ -17,9 +17,15 @@ interface StoredAccount {
   securityAnswerHash: string;
 }
 
+export interface BackgroundSetting {
+  type: "neon" | "preset" | "custom";
+  value?: string; // preset key OR base64 data URL for custom
+}
+
 export interface UserSettings {
   theme: string;
   autoLock: boolean;
+  background: BackgroundSetting;
 }
 
 type AccountsStore = Record<string, StoredAccount>;
@@ -75,14 +81,16 @@ function clearSession(): void {
 function loadSettings(username: string): UserSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY_PREFIX + username);
-    if (!raw) return { theme: "system", autoLock: false };
+    if (!raw)
+      return { theme: "system", autoLock: false, background: { type: "neon" } };
     const parsed = JSON.parse(raw) as Partial<UserSettings>;
     return {
       theme: parsed.theme ?? "system",
       autoLock: parsed.autoLock ?? false,
+      background: parsed.background ?? { type: "neon" },
     };
   } catch {
-    return { theme: "system", autoLock: false };
+    return { theme: "system", autoLock: false, background: { type: "neon" } };
   }
 }
 
@@ -245,7 +253,8 @@ export function usePasswordAuth() {
 
   // Get settings for current user
   const getSettings = useCallback((): UserSettings => {
-    if (!user) return { theme: "system", autoLock: false };
+    if (!user)
+      return { theme: "system", autoLock: false, background: { type: "neon" } };
     return loadSettings(user.username);
   }, [user]);
 

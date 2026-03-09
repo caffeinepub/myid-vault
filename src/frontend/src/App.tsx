@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
-import NeonRainBackground from "./components/NeonRainBackground";
+import AppBackground from "./components/AppBackground";
 import { usePasswordAuth } from "./hooks/usePasswordAuth";
 import type { UserSettings } from "./hooks/usePasswordAuth";
 import AddCardPage from "./pages/AddCardPage";
@@ -45,6 +45,7 @@ function PageTransition({
 
 function AuthenticatedApp({
   userName,
+  username,
   onLogout,
   hasSecurityQuestion,
   updateSecurityQuestion,
@@ -52,6 +53,7 @@ function AuthenticatedApp({
   getSettings,
 }: {
   userName: string;
+  username: string;
   onLogout: () => Promise<void>;
   hasSecurityQuestion: boolean;
   updateSecurityQuestion: (
@@ -89,7 +91,7 @@ function AuthenticatedApp({
         background: "transparent",
       }}
     >
-      <NeonRainBackground />
+      <AppBackground username={username} />
       <div style={{ position: "relative", zIndex: 1 }}>
         <Toaster position="top-center" richColors />
 
@@ -162,7 +164,7 @@ export default function App() {
           background: "transparent",
         }}
       >
-        <NeonRainBackground />
+        <AppBackground username={undefined} />
         <div
           className="flex flex-col items-center gap-3"
           style={{ position: "relative", zIndex: 1 }}
@@ -178,7 +180,7 @@ export default function App() {
   if (!user) {
     return (
       <div style={{ position: "relative", minHeight: "100dvh" }}>
-        <NeonRainBackground />
+        <AppBackground username={undefined} />
         <div style={{ position: "relative", zIndex: 1 }}>
           <Toaster position="top-center" richColors />
           <div
@@ -199,6 +201,7 @@ export default function App() {
   return (
     <AuthenticatedApp
       userName={user.name}
+      username={user.username}
       onLogout={logout}
       hasSecurityQuestion={hasSecurityQuestion}
       updateSecurityQuestion={updateSecurityQuestion}
