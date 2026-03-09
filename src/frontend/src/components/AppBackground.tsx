@@ -52,10 +52,35 @@ function VideoBackground({ videoKey }: { videoKey: string }) {
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    v.play().catch(() => {
-      // autoplay blocked — still show static poster
-    });
-  }, []);
+
+    // Try autoplay immediately
+    const tryPlay = () => {
+      v.muted = true;
+      v.play().catch(() => {});
+    };
+
+    tryPlay();
+
+    // If autoplay is blocked, retry on first user interaction
+    const onInteraction = () => {
+      v.muted = true;
+      v.play().catch(() => {});
+      document.removeEventListener("click", onInteraction);
+      document.removeEventListener("touchstart", onInteraction);
+      document.removeEventListener("keydown", onInteraction);
+    };
+
+    document.addEventListener("click", onInteraction, { once: true });
+    document.addEventListener("touchstart", onInteraction, { once: true });
+    document.addEventListener("keydown", onInteraction, { once: true });
+
+    return () => {
+      document.removeEventListener("click", onInteraction);
+      document.removeEventListener("touchstart", onInteraction);
+      document.removeEventListener("keydown", onInteraction);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // biome-ignore lint/correctness/useExhaustiveDependencies: videoKey is stable per mount
 
   if (!src) return <NeonRainBackground />;
 
@@ -78,6 +103,8 @@ function VideoBackground({ videoKey }: { videoKey: string }) {
         muted
         loop
         playsInline
+        disablePictureInPicture
+        preload="auto"
         style={{
           position: "absolute",
           inset: 0,
