@@ -4,31 +4,18 @@
  * appropriate background. Listens for 'myid-bg-change' window events
  * to re-render when the user changes their background in Settings.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import AnimatedBackground from "./AnimatedBackgrounds";
 import NeonRainBackground from "./NeonRainBackground";
 
 export interface BackgroundSetting {
-  type: "neon" | "preset" | "custom" | "video";
+  type: "neon" | "preset" | "custom" | "animated";
   value?: string;
 }
 
 const SETTINGS_KEY = "myid-vault-settings-ii";
 
 const DEFAULT_BG: BackgroundSetting = { type: "preset", value: "aurora" };
-
-// Live video wallpaper sources (looping ambient videos via public CDN)
-const VIDEO_SOURCES: Record<string, string> = {
-  "rain-window":
-    "https://assets.mixkit.co/videos/preview/mixkit-rain-falling-on-the-window-18271-large.mp4",
-  "northern-lights":
-    "https://assets.mixkit.co/videos/preview/mixkit-northern-lights-in-a-starry-night-sky-4901-large.mp4",
-  "ocean-waves":
-    "https://assets.mixkit.co/videos/preview/mixkit-waves-coming-from-the-sea-on-a-night-beach-18093-large.mp4",
-  "stars-sky":
-    "https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1610-large.mp4",
-  "city-lights":
-    "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-city-traffic-at-night-11-large.mp4",
-};
 
 function readBackground(_username?: string): BackgroundSetting {
   try {
@@ -43,87 +30,6 @@ function readBackground(_username?: string): BackgroundSetting {
 
 interface AppBackgroundProps {
   username?: string;
-}
-
-function VideoBackground({ videoKey }: { videoKey: string }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const src = VIDEO_SOURCES[videoKey];
-
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-
-    // Try autoplay immediately
-    const tryPlay = () => {
-      v.muted = true;
-      v.play().catch(() => {});
-    };
-
-    tryPlay();
-
-    // If autoplay is blocked, retry on first user interaction
-    const onInteraction = () => {
-      v.muted = true;
-      v.play().catch(() => {});
-      document.removeEventListener("click", onInteraction);
-      document.removeEventListener("touchstart", onInteraction);
-      document.removeEventListener("keydown", onInteraction);
-    };
-
-    document.addEventListener("click", onInteraction, { once: true });
-    document.addEventListener("touchstart", onInteraction, { once: true });
-    document.addEventListener("keydown", onInteraction, { once: true });
-
-    return () => {
-      document.removeEventListener("click", onInteraction);
-      document.removeEventListener("touchstart", onInteraction);
-      document.removeEventListener("keydown", onInteraction);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // biome-ignore lint/correctness/useExhaustiveDependencies: videoKey is stable per mount
-
-  if (!src) return <NeonRainBackground />;
-
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 0,
-        pointerEvents: "none",
-        overflow: "hidden",
-        background: "oklch(0.05 0.01 260)",
-      }}
-    >
-      <video
-        ref={videoRef}
-        src={src}
-        autoPlay
-        muted
-        loop
-        playsInline
-        disablePictureInPicture
-        preload="auto"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-        }}
-      />
-      {/* Subtle dark overlay for readability */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(to bottom, oklch(0.04 0.01 260 / 0.45), oklch(0.04 0.01 260 / 0.35))",
-        }}
-      />
-    </div>
-  );
 }
 
 export default function AppBackground({ username }: AppBackgroundProps) {
@@ -148,9 +54,9 @@ export default function AppBackground({ username }: AppBackgroundProps) {
     return <NeonRainBackground />;
   }
 
-  // Live video backgrounds
-  if (bg.type === "video" && bg.value) {
-    return <VideoBackground videoKey={bg.value} />;
+  // Animated CSS backgrounds
+  if (bg.type === "animated" && bg.value) {
+    return <AnimatedBackground animKey={bg.value} />;
   }
 
   // Preset image backgrounds

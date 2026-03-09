@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft,
@@ -10,6 +9,7 @@ import {
   Monitor,
   Moon,
   Settings,
+  Sparkles,
   Sun,
   Upload,
 } from "lucide-react";
@@ -80,6 +80,43 @@ function applyTheme(theme: string) {
 
 type ThemeOption = "dark" | "light" | "system";
 
+/* Mini static thumbnail representing each animated style */
+function AnimatedThumbnail({
+  animKey,
+  color,
+}: {
+  animKey: string;
+  color: string;
+}) {
+  const styles: Record<string, React.CSSProperties> = {
+    "cyber-wave": {
+      background: `linear-gradient(135deg, oklch(0.04 0.01 260) 0%, ${color} 50%, oklch(0.65 0.28 300) 100%)`,
+    },
+    "particle-storm": {
+      background: `radial-gradient(circle at 30% 40%, ${color} 0%, oklch(0.04 0.01 260) 70%)`,
+    },
+    "neon-aurora": {
+      background: `radial-gradient(ellipse at 50% 60%, ${color} 0%, oklch(0.65 0.28 300 / 0.6) 50%, oklch(0.04 0.01 260) 80%)`,
+    },
+    "grid-pulse": {
+      background: `repeating-linear-gradient(0deg, transparent, transparent 5px, ${color}30 5px, ${color}30 6px), repeating-linear-gradient(90deg, transparent, transparent 5px, ${color}30 5px, ${color}30 6px), oklch(0.04 0.01 260)`,
+    },
+    "plasma-flow": {
+      background: `conic-gradient(from 30deg at 50% 50%, ${color}, oklch(0.65 0.28 300), oklch(0.68 0.28 340), ${color})`,
+    },
+  };
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        borderRadius: "10px",
+        ...(styles[animKey] ?? { background: `${color}44` }),
+      }}
+    />
+  );
+}
+
 export default function SettingsPage({ navigate }: SettingsPageProps) {
   const settings = loadSettings();
 
@@ -103,11 +140,55 @@ export default function SettingsPage({ navigate }: SettingsPageProps) {
   interface BgPreset {
     key: string;
     label: string;
-    type: "neon" | "preset" | "video";
+    type: "neon" | "preset" | "animated";
     value?: string;
     thumbnail?: string;
-    isVideo?: boolean;
+    category?: string;
+    color?: string;
   }
+
+  const ANIMATED_PRESETS: BgPreset[] = [
+    {
+      key: "cyber-wave",
+      label: "Cyber Wave",
+      type: "animated",
+      value: "cyber-wave",
+      category: "Animated Gradient",
+      color: "oklch(0.72 0.22 195)",
+    },
+    {
+      key: "particle-storm",
+      label: "Particle Storm",
+      type: "animated",
+      value: "particle-storm",
+      category: "Neon Particles",
+      color: "oklch(0.65 0.28 300)",
+    },
+    {
+      key: "neon-aurora",
+      label: "Neon Aurora",
+      type: "animated",
+      value: "neon-aurora",
+      category: "Aurora Blobs",
+      color: "oklch(0.72 0.22 150)",
+    },
+    {
+      key: "grid-pulse",
+      label: "Grid Pulse",
+      type: "animated",
+      value: "grid-pulse",
+      category: "Neon Grid",
+      color: "oklch(0.72 0.22 195)",
+    },
+    {
+      key: "plasma-flow",
+      label: "Plasma Flow",
+      type: "animated",
+      value: "plasma-flow",
+      category: "Plasma Wave",
+      color: "oklch(0.75 0.25 30)",
+    },
+  ];
 
   const BG_PRESETS: BgPreset[] = [
     { key: "neon", label: "Neon Rain", type: "neon" },
@@ -148,56 +229,10 @@ export default function SettingsPage({ navigate }: SettingsPageProps) {
     },
   ];
 
-  const VIDEO_PRESETS: BgPreset[] = [
-    {
-      key: "rain-window",
-      label: "Rainy Window",
-      type: "video",
-      value: "rain-window",
-      isVideo: true,
-    },
-    {
-      key: "northern-lights",
-      label: "Northern Lights",
-      type: "video",
-      value: "northern-lights",
-      isVideo: true,
-    },
-    {
-      key: "ocean-waves",
-      label: "Ocean Waves",
-      type: "video",
-      value: "ocean-waves",
-      isVideo: true,
-    },
-    {
-      key: "stars-sky",
-      label: "Starry Sky",
-      type: "video",
-      value: "stars-sky",
-      isVideo: true,
-    },
-    {
-      key: "city-lights",
-      label: "City Lights",
-      type: "video",
-      value: "city-lights",
-      isVideo: true,
-    },
-  ];
-
-  const VIDEO_COLORS: Record<string, string> = {
-    "rain-window": "oklch(0.65 0.16 220)",
-    "northern-lights": "oklch(0.72 0.18 150)",
-    "ocean-waves": "oklch(0.65 0.2 200)",
-    "stars-sky": "oklch(0.7 0.14 280)",
-    "city-lights": "oklch(0.72 0.18 50)",
-  };
-
   const isPresetActive = (preset: BgPreset): boolean => {
     if (preset.type === "neon") return currentBg.type === "neon";
-    if (preset.type === "video")
-      return currentBg.type === "video" && currentBg.value === preset.value;
+    if (preset.type === "animated")
+      return currentBg.type === "animated" && currentBg.value === preset.value;
     return currentBg.type === "preset" && currentBg.value === preset.value;
   };
 
@@ -211,8 +246,8 @@ export default function SettingsPage({ navigate }: SettingsPageProps) {
     const newBg: BackgroundSetting =
       preset.type === "neon"
         ? { type: "neon" }
-        : preset.type === "video"
-          ? { type: "video", value: preset.value }
+        : preset.type === "animated"
+          ? { type: "animated", value: preset.value }
           : { type: "preset", value: preset.value };
     setCurrentBg(newBg);
     setCustomPreviewUrl(null);
@@ -585,28 +620,21 @@ export default function SettingsPage({ navigate }: SettingsPageProps) {
               style={{ background: "oklch(0.22 0.03 260)" }}
             />
 
-            {/* Live Video Wallpapers */}
+            {/* Neon & Gradient Styles */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
+                <Sparkles
+                  className="w-3.5 h-3.5"
+                  style={{ color: "oklch(0.72 0.22 195)" }}
+                />
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Live Video Wallpapers
+                  Neon &amp; Gradient Styles
                 </p>
-                <span
-                  className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
-                  style={{
-                    background: "oklch(0.55 0.22 270 / 0.18)",
-                    color: "oklch(0.72 0.18 270)",
-                    border: "1px solid oklch(0.55 0.22 270 / 0.3)",
-                  }}
-                >
-                  LIVE
-                </span>
               </div>
               <div className="grid grid-cols-1 gap-2">
-                {VIDEO_PRESETS.map((preset, idx) => {
+                {ANIMATED_PRESETS.map((preset, idx) => {
                   const active = isPresetActive(preset);
-                  const color =
-                    VIDEO_COLORS[preset.value ?? ""] ?? "oklch(0.65 0.15 260)";
+                  const color = preset.color ?? "oklch(0.65 0.15 260)";
                   return (
                     <motion.button
                       key={preset.key}
@@ -614,8 +642,8 @@ export default function SettingsPage({ navigate }: SettingsPageProps) {
                       whileTap={{ scale: 0.97 }}
                       whileHover={{ scale: 1.01 }}
                       onClick={() => handleSelectPreset(preset)}
-                      data-ocid={`settings.background.video.item.${idx + 1}`}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left"
+                      data-ocid={`settings.background.animated.item.${idx + 1}`}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left"
                       style={{
                         border: active
                           ? `1.5px solid ${color}`
@@ -623,51 +651,48 @@ export default function SettingsPage({ navigate }: SettingsPageProps) {
                         background: active
                           ? "oklch(0.12 0.03 260 / 0.8)"
                           : "oklch(0.10 0.02 260 / 0.5)",
-                        boxShadow: active ? `0 0 10px 1px ${color}55` : "none",
+                        boxShadow: active ? `0 0 12px 2px ${color}55` : "none",
                         transition: "border-color 0.2s, box-shadow 0.2s",
                       }}
                       aria-pressed={active}
-                      aria-label={`Select ${preset.label} live wallpaper`}
+                      aria-label={`Select ${preset.label} animated background`}
                     >
+                      {/* Mini thumbnail preview */}
                       <div
-                        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        className="w-9 h-9 rounded-xl flex-shrink-0 overflow-hidden"
                         style={{
-                          background: `${color}22`,
                           border: `1px solid ${color}44`,
+                          position: "relative",
                         }}
                       >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke={color}
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          aria-label="Video wallpaper"
-                          role="img"
-                        >
-                          <title>Video</title>
-                          <polygon points="23 7 16 12 23 17 23 7" />
-                          <rect
-                            x="1"
-                            y="5"
-                            width="15"
-                            height="14"
-                            rx="2"
-                            ry="2"
-                          />
-                        </svg>
+                        <AnimatedThumbnail
+                          animKey={preset.value ?? ""}
+                          color={color}
+                        />
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-foreground">
-                          {preset.label}
-                        </p>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-foreground truncate">
+                            {preset.label}
+                          </p>
+                          {/* Category badge */}
+                          <span
+                            className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none"
+                            style={{
+                              background: `${color}20`,
+                              color,
+                              border: `1px solid ${color}40`,
+                            }}
+                          >
+                            {preset.category}
+                          </span>
+                        </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Looping ambient video
+                          Live CSS animation
                         </p>
                       </div>
+
                       {active && (
                         <motion.div
                           initial={{ scale: 0, opacity: 0 }}
@@ -675,7 +700,7 @@ export default function SettingsPage({ navigate }: SettingsPageProps) {
                           className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
                           style={{
                             background: color,
-                            boxShadow: `0 0 6px 1px ${color}88`,
+                            boxShadow: `0 0 8px 2px ${color}88`,
                           }}
                         >
                           <Check
