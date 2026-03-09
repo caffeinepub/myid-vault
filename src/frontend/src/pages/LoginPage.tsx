@@ -2,32 +2,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  ArrowLeft,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronLeft,
   Eye,
   EyeOff,
-  HelpCircle,
   KeyRound,
   Loader2,
-  Lock,
-  Shield,
+  ShieldCheck,
   User,
   Wallet,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
-import { toast } from "sonner";
-
-type TabType = "login" | "signup" | "forgot";
-
-interface FormErrors {
-  name?: string;
-  username?: string;
-  password?: string;
-  confirmPassword?: string;
-  securityQuestion?: string;
-  securityAnswer?: string;
-  general?: string;
-}
 
 interface LoginPageProps {
   loginWithPassword: (username: string, password: string) => Promise<void>;
@@ -38,1219 +32,1234 @@ interface LoginPageProps {
     securityQuestion: string,
     securityAnswer: string,
   ) => Promise<void>;
+  getSecurityQuestion: (username: string) => string;
   resetPassword: (
     username: string,
     securityAnswer: string,
     newPassword: string,
   ) => Promise<void>;
-  getSecurityQuestion: (username: string) => string;
+  onLoginSuccess: (user: { username: string; name: string }) => void;
 }
 
 const SECURITY_QUESTIONS = [
   "What is your mother's maiden name?",
   "What was the name of your first pet?",
-  "What was the name of your primary school?",
-  "What is your favourite movie?",
   "What city were you born in?",
+  "What was the name of your elementary school?",
   "What is your oldest sibling's middle name?",
 ];
 
-// Reusable error box
-function ErrorBox({ message }: { message: string }) {
+type View =
+  | "auth"
+  | "forgot-step1"
+  | "forgot-step2"
+  | "forgot-step3"
+  | "forgot-success";
+type Tab = "login" | "signup";
+
+// ─── Success Animation Overlay ────────────────────────────────────────────────
+function SuccessAnimation({ userName }: { userName: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: "auto" }}
-      exit={{ opacity: 0, height: 0 }}
-      className="rounded-xl px-3 py-2.5 text-sm font-medium"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="fixed inset-0 flex flex-col items-center justify-center z-50"
       style={{
-        background: "oklch(0.577 0.245 27.325 / 0.12)",
-        border: "1px solid oklch(0.577 0.245 27.325 / 0.3)",
-        color: "oklch(0.577 0.245 27.325)",
+        background:
+          "radial-gradient(ellipse at center, oklch(0.12 0.06 160 / 0.98) 0%, oklch(0.06 0.015 260 / 0.99) 70%)",
       }}
     >
-      {message}
-    </motion.div>
-  );
-}
+      {/* Radial wipe sweep */}
+      <motion.div
+        initial={{ scale: 0, opacity: 0.7 }}
+        animate={{ scale: 4, opacity: 0 }}
+        transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+        className="absolute rounded-full"
+        style={{
+          width: 320,
+          height: 320,
+          background:
+            "radial-gradient(circle, oklch(0.75 0.2 160 / 0.5) 0%, transparent 70%)",
+        }}
+      />
 
-// Step progress indicator
-function StepIndicator({ current, total }: { current: number; total: number }) {
-  return (
-    <div className="flex items-center gap-2 mb-5">
-      {Array.from({ length: total }).map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: static fixed-length step array
-        <div key={i} className="flex items-center gap-2">
-          <motion.div
-            animate={{
-              background:
-                i + 1 <= current
-                  ? "oklch(0.65 0.22 195)"
-                  : "oklch(0.18 0.025 260)",
-              scale: i + 1 === current ? 1.15 : 1,
-            }}
-            transition={{ duration: 0.32 }}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-            style={{
-              color:
-                i + 1 <= current
-                  ? "oklch(0.08 0.015 260)"
-                  : "oklch(0.55 0.03 250)",
-            }}
-          >
-            {i + 1}
-          </motion.div>
-          {i < total - 1 && (
-            <motion.div
-              animate={{
-                background:
-                  i + 1 < current
-                    ? "oklch(0.65 0.22 195)"
-                    : "oklch(0.18 0.025 260)",
-              }}
-              className="h-0.5 w-6 rounded-full"
-              transition={{ duration: 0.3 }}
-            />
-          )}
-        </div>
+      {/* Particle burst */}
+      {Array.from({ length: 12 }).map((_, i) => (
+        <motion.div
+          // biome-ignore lint/suspicious/noArrayIndexKey: static particle burst, order is stable
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: 6,
+            height: 6,
+            background:
+              i % 3 === 0
+                ? "oklch(0.72 0.22 195)"
+                : i % 3 === 1
+                  ? "oklch(0.65 0.28 300)"
+                  : "oklch(0.75 0.2 160)",
+          }}
+          initial={{ x: 0, y: 0, scale: 0, opacity: 1 }}
+          animate={{
+            x: Math.cos((i * Math.PI * 2) / 12) * (80 + Math.random() * 60),
+            y: Math.sin((i * Math.PI * 2) / 12) * (80 + Math.random() * 60),
+            scale: [0, 1.5, 0],
+            opacity: [0, 1, 0],
+          }}
+          transition={{ duration: 0.9, ease: "easeOut", delay: 0.1 }}
+        />
       ))}
-      <span className="ml-auto text-xs text-muted-foreground font-medium">
-        Step {current} of {total}
-      </span>
-    </div>
+
+      {/* Green checkmark badge */}
+      <motion.div
+        initial={{ scale: 0, rotate: -30 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{
+          type: "spring",
+          stiffness: 320,
+          damping: 18,
+          delay: 0.15,
+        }}
+        className="relative z-10 rounded-full p-5 mb-5"
+        style={{
+          background: "oklch(0.15 0.06 160 / 0.8)",
+          border: "2px solid oklch(0.75 0.2 160 / 0.6)",
+          boxShadow: "0 0 40px 12px oklch(0.75 0.2 160 / 0.35)",
+        }}
+      >
+        <CheckCircle2
+          className="w-14 h-14"
+          style={{ color: "oklch(0.75 0.2 160)" }}
+        />
+      </motion.div>
+
+      <motion.p
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35, duration: 0.4 }}
+        className="text-2xl font-bold relative z-10"
+        style={{ color: "oklch(0.92 0.01 250)" }}
+      >
+        Welcome, {userName}!
+      </motion.p>
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="text-sm mt-1 relative z-10"
+        style={{ color: "oklch(0.55 0.02 250)" }}
+      >
+        Opening your vault…
+      </motion.p>
+    </motion.div>
   );
 }
 
 export default function LoginPage({
   loginWithPassword,
   signUp,
-  resetPassword,
   getSecurityQuestion,
+  resetPassword,
+  onLoginSuccess,
 }: LoginPageProps) {
-  const [tab, setTab] = useState<TabType>("login");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [shakeError, setShakeError] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>("login");
+  const [view, setView] = useState<View>("auth");
 
-  // Login form state
+  // Success animation
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successUser, setSuccessUser] = useState<{
+    username: string;
+    name: string;
+  } | null>(null);
+
+  // ── Login form state ──────────────────────────────────────────────
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [loginShowPw, setLoginShowPw] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
 
-  // Sign-up form state
+  // ── Sign-up form state ────────────────────────────────────────────
   const [signupName, setSignupName] = useState("");
   const [signupUsername, setSignupUsername] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
-  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
-  const [signupSecurityQuestion, setSignupSecurityQuestion] = useState("");
-  const [signupSecurityAnswer, setSignupSecurityAnswer] = useState("");
+  const [signupConfirm, setSignupConfirm] = useState("");
+  const [signupShowPw, setSignupShowPw] = useState(false);
+  const [signupShowConfirm, setSignupShowConfirm] = useState(false);
+  const [signupQuestion, setSignupQuestion] = useState("");
+  const [signupAnswer, setSignupAnswer] = useState("");
+  const [signupError, setSignupError] = useState("");
+  const [signupLoading, setSignupLoading] = useState(false);
 
-  // Forgot password state
-  const [forgotStep, setForgotStep] = useState<1 | 2 | 3>(1);
+  // ── Forgot password state ─────────────────────────────────────────
   const [forgotUsername, setForgotUsername] = useState("");
   const [forgotQuestion, setForgotQuestion] = useState("");
   const [forgotAnswer, setForgotAnswer] = useState("");
-  const [forgotNewPassword, setForgotNewPassword] = useState("");
-  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotNewPw, setForgotNewPw] = useState("");
+  const [forgotConfirmPw, setForgotConfirmPw] = useState("");
+  const [forgotShowNew, setForgotShowNew] = useState(false);
+  const [forgotError, setForgotError] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
 
-  const [errors, setErrors] = useState<FormErrors>({});
+  // ── Helpers ───────────────────────────────────────────────────────
+  function triggerSuccess(authUser: { username: string; name: string }) {
+    setSuccessUser(authUser);
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+      onLoginSuccess(authUser);
+    }, 1600);
+  }
 
-  const triggerShake = () => {
-    setShakeError(true);
-    setTimeout(() => setShakeError(false), 600);
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
+  // ── Login submit ──────────────────────────────────────────────────
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    const newErrors: FormErrors = {};
-    if (!loginUsername.trim()) newErrors.username = "Username is required";
-    if (!loginPassword) newErrors.password = "Password is required";
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      triggerShake();
+    setLoginError("");
+    if (!loginUsername.trim() || !loginPassword) {
+      setLoginError("Please enter your username and password.");
       return;
     }
-    setErrors({});
-    setIsSubmitting(true);
+    setLoginLoading(true);
     try {
       await loginWithPassword(loginUsername.trim(), loginPassword);
-      toast.success("Welcome back!");
+      triggerSuccess({
+        username: loginUsername.trim().toLowerCase(),
+        name: loginUsername.trim(),
+      });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Login failed";
-      setErrors({ general: msg });
-      triggerShake();
+      setLoginError(err instanceof Error ? err.message : "Login failed.");
     } finally {
-      setIsSubmitting(false);
+      setLoginLoading(false);
     }
-  };
+  }
 
-  const handleSignup = async (e: React.FormEvent) => {
+  // ── Sign-up submit ────────────────────────────────────────────────
+  async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
-    const newErrors: FormErrors = {};
-    if (!signupName.trim()) newErrors.name = "Full name is required";
-    if (!signupUsername.trim()) newErrors.username = "Username is required";
-    else if (signupUsername.trim().length < 3)
-      newErrors.username = "Username must be at least 3 characters";
-    else if (!/^[a-zA-Z0-9_]+$/.test(signupUsername.trim()))
-      newErrors.username = "Only letters, numbers, and underscores";
-    if (!signupPassword) newErrors.password = "Password is required";
-    else if (signupPassword.length < 6)
-      newErrors.password = "Password must be at least 6 characters";
-    if (!signupConfirmPassword)
-      newErrors.confirmPassword = "Please confirm your password";
-    else if (signupPassword !== signupConfirmPassword)
-      newErrors.confirmPassword = "Passwords do not match";
-    if (!signupSecurityQuestion)
-      newErrors.securityQuestion = "Please select a security question";
-    if (!signupSecurityAnswer.trim())
-      newErrors.securityAnswer = "Security answer is required";
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      triggerShake();
+    setSignupError("");
+    if (!signupName.trim()) {
+      setSignupError("Please enter your full name.");
       return;
     }
-    setErrors({});
-    setIsSubmitting(true);
+    if (!signupUsername.trim()) {
+      setSignupError("Please choose a username.");
+      return;
+    }
+    if (signupPassword.length < 6) {
+      setSignupError("Password must be at least 6 characters.");
+      return;
+    }
+    if (signupPassword !== signupConfirm) {
+      setSignupError("Passwords do not match.");
+      return;
+    }
+    if (!signupQuestion) {
+      setSignupError("Please select a security question.");
+      return;
+    }
+    if (!signupAnswer.trim()) {
+      setSignupError("Please provide an answer to your security question.");
+      return;
+    }
+    setSignupLoading(true);
     try {
       await signUp(
         signupName.trim(),
         signupUsername.trim(),
         signupPassword,
-        signupSecurityQuestion,
-        signupSecurityAnswer.trim(),
+        signupQuestion,
+        signupAnswer.trim(),
       );
-      toast.success(`Welcome, ${signupName.trim()}! Your vault is ready.`);
+      triggerSuccess({
+        username: signupUsername.trim().toLowerCase(),
+        name: signupName.trim(),
+      });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Sign up failed";
-      setErrors({ general: msg });
-      triggerShake();
+      setSignupError(err instanceof Error ? err.message : "Sign up failed.");
     } finally {
-      setIsSubmitting(false);
+      setSignupLoading(false);
     }
-  };
+  }
 
-  // Forgot password: Step 1 — find username
-  const handleForgotStep1 = (e: React.FormEvent) => {
+  // ── Forgot — step 1: get question ────────────────────────────────
+  function handleForgotStep1(e: React.FormEvent) {
     e.preventDefault();
-    const newErrors: FormErrors = {};
-    if (!forgotUsername.trim()) newErrors.username = "Username is required";
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      triggerShake();
+    setForgotError("");
+    if (!forgotUsername.trim()) {
+      setForgotError("Please enter your username.");
       return;
     }
-    setErrors({});
     try {
-      const question = getSecurityQuestion(forgotUsername.trim());
-      setForgotQuestion(question);
-      setForgotStep(2);
+      const q = getSecurityQuestion(forgotUsername.trim());
+      setForgotQuestion(q);
+      setView("forgot-step2");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not find account";
-      setErrors({ general: msg });
-      triggerShake();
+      setForgotError(err instanceof Error ? err.message : "User not found.");
     }
-  };
+  }
 
-  // Forgot password: Step 2 — verify answer
-  const handleForgotStep2 = (e: React.FormEvent) => {
+  // ── Forgot — step 2: verify answer ──────────────────────────────
+  function handleForgotStep2(e: React.FormEvent) {
     e.preventDefault();
-    const newErrors: FormErrors = {};
-    if (!forgotAnswer.trim()) newErrors.securityAnswer = "Answer is required";
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      triggerShake();
+    setForgotError("");
+    if (!forgotAnswer.trim()) {
+      setForgotError("Please enter your answer.");
       return;
     }
-    setErrors({});
-    setForgotStep(3);
-  };
+    // We move to step 3; verification happens when resetting password
+    setView("forgot-step3");
+  }
 
-  // Forgot password: Step 3 — reset password
-  const handleForgotStep3 = async (e: React.FormEvent) => {
+  // ── Forgot — step 3: reset password ─────────────────────────────
+  async function handleForgotStep3(e: React.FormEvent) {
     e.preventDefault();
-    const newErrors: FormErrors = {};
-    if (!forgotNewPassword) newErrors.password = "New password is required";
-    else if (forgotNewPassword.length < 6)
-      newErrors.password = "Password must be at least 6 characters";
-    if (!forgotConfirmPassword)
-      newErrors.confirmPassword = "Please confirm your password";
-    else if (forgotNewPassword !== forgotConfirmPassword)
-      newErrors.confirmPassword = "Passwords do not match";
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      triggerShake();
+    setForgotError("");
+    if (forgotNewPw.length < 6) {
+      setForgotError("Password must be at least 6 characters.");
       return;
     }
-    setErrors({});
-    setIsSubmitting(true);
+    if (forgotNewPw !== forgotConfirmPw) {
+      setForgotError("Passwords do not match.");
+      return;
+    }
+    setForgotLoading(true);
     try {
       await resetPassword(
         forgotUsername.trim(),
         forgotAnswer.trim(),
-        forgotNewPassword,
+        forgotNewPw,
       );
-      toast.success("Password reset successfully!");
-      goBackToLogin();
+      setView("forgot-success");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Password reset failed";
-      setErrors({ general: msg });
-      triggerShake();
+      setForgotError(err instanceof Error ? err.message : "Reset failed.");
     } finally {
-      setIsSubmitting(false);
+      setForgotLoading(false);
     }
-  };
+  }
 
-  const goBackToLogin = () => {
-    setTab("login");
-    setForgotStep(1);
+  function resetForgotFlow() {
     setForgotUsername("");
     setForgotQuestion("");
     setForgotAnswer("");
-    setForgotNewPassword("");
-    setForgotConfirmPassword("");
-    setShowForgotPassword(false);
-    setErrors({});
+    setForgotNewPw("");
+    setForgotConfirmPw("");
+    setForgotError("");
+    setView("forgot-step1");
+  }
+
+  // ── Shared input style ────────────────────────────────────────────
+  const inputStyle = {
+    background: "oklch(0.10 0.015 260 / 0.8)",
+    border: "1px solid oklch(0.25 0.03 260 / 0.8)",
+    color: "oklch(0.92 0.01 250)",
+    fontSize: "1rem",
   };
 
-  const switchTab = (newTab: "login" | "signup") => {
-    if (isSubmitting) return;
-    setTab(newTab);
-    setErrors({});
-    setShowPassword(false);
-    setShowConfirmPassword(false);
-  };
-
-  const openForgot = () => {
-    setTab("forgot");
-    setForgotStep(1);
-    setErrors({});
-    setForgotUsername("");
-    setForgotQuestion("");
-    setForgotAnswer("");
-    setForgotNewPassword("");
-    setForgotConfirmPassword("");
-  };
-
-  // Slide direction for forgot steps
-  const forgotSlideDir = (step: 1 | 2 | 3) =>
-    step === forgotStep ? 0 : step < forgotStep ? -30 : 30;
-
-  return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden"
-      style={{ background: "transparent" }}
-    >
-      <main className="relative z-10 w-full max-w-sm mx-auto px-6 flex flex-col items-center text-center">
-        {/* Logo + branding */}
-        <motion.div
-          initial={{ opacity: 0, y: -24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-8"
-        >
+  // ── Error block ───────────────────────────────────────────────────
+  function ErrorBlock({ msg, id }: { msg: string; id: string }) {
+    return (
+      <AnimatePresence>
+        {msg && (
           <motion.div
-            animate={{ y: [0, -5, 0] }}
-            transition={{
-              duration: 3.5,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            data-ocid={id}
+            className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm"
+            style={{
+              background: "oklch(0.577 0.245 27.325 / 0.12)",
+              border: "1px solid oklch(0.577 0.245 27.325 / 0.3)",
+              color: "oklch(0.577 0.245 27.325)",
             }}
           >
-            <div
-              className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-lg rgb-glow"
-              style={{
-                background:
-                  "linear-gradient(135deg, oklch(0.15 0.08 220) 0%, oklch(0.72 0.22 195 / 0.8) 100%)",
-                boxShadow: "0 0 32px 8px oklch(0.72 0.22 195 / 0.4)",
-              }}
-            >
-              <Wallet
-                className="w-9 h-9"
-                style={{ color: "oklch(0.97 0.005 240)" }}
-              />
-            </div>
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{msg}</span>
           </motion.div>
-          <h1 className="text-4xl font-display font-bold text-foreground tracking-tight neon-text">
-            MyID Vault
-          </h1>
-          <p className="text-muted-foreground text-base mt-2 leading-relaxed">
-            Store and access your IDs anywhere
-          </p>
-        </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  }
 
-        {/* Auth card */}
-        <motion.div
-          initial={{ opacity: 0, y: 30, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{
-            type: "spring",
-            stiffness: 280,
-            damping: 22,
-            delay: 0.15,
-          }}
-          className={`w-full rounded-3xl border bg-card overflow-hidden rgb-glow-sm rgb-border ${
-            shakeError ? "animate-shake" : ""
-          }`}
-          style={{
-            boxShadow:
-              "0 4px 24px -4px oklch(0.08 0.015 260 / 0.8), 0 0 0 1px oklch(0.22 0.03 260 / 0.8), 0 0 32px 4px oklch(0.72 0.22 195 / 0.08)",
-          }}
-        >
-          {/* Tab switcher — hidden during forgot flow */}
-          <AnimatePresence>
-            {tab !== "forgot" && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.22 }}
-                className="relative flex border-b border-border"
-                style={{ background: "oklch(0.09 0.015 260 / 0.8)" }}
-              >
-                {/* Sliding indicator */}
-                <motion.div
-                  className="absolute bottom-0 h-0.5 w-1/2 rgb-glow-sm"
-                  style={{ background: "oklch(0.38 0.1 265)" }}
-                  animate={{ x: tab === "login" ? "0%" : "100%" }}
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => switchTab("login")}
-                  className={`flex-1 py-3.5 text-sm font-semibold transition-colors duration-200 ${
-                    tab === "login"
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground/70"
-                  }`}
-                >
-                  Login
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchTab("signup")}
-                  className={`flex-1 py-3.5 text-sm font-semibold transition-colors duration-200 ${
-                    tab === "signup"
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground/70"
-                  }`}
-                >
-                  Sign Up
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+  return (
+    <>
+      {/* Success animation overlay */}
+      <AnimatePresence>
+        {showSuccess && successUser && (
+          <SuccessAnimation userName={successUser.name} />
+        )}
+      </AnimatePresence>
 
-          {/* Form area */}
-          <div className="p-6">
-            {/* Security badge */}
-            <div className="flex items-center justify-center mb-5">
+      <div
+        className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden"
+        style={{ background: "transparent" }}
+      >
+        <main className="relative z-10 w-full max-w-sm mx-auto px-5 flex flex-col items-center">
+          {/* Logo */}
+          <motion.div
+            initial={{ opacity: 0, y: -24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="mb-7 text-center"
+          >
+            <motion.div
+              animate={{ y: [0, -5, 0] }}
+              transition={{
+                duration: 3.5,
+                repeat: Number.POSITIVE_INFINITY,
+                ease: "easeInOut",
+              }}
+              className="inline-block"
+            >
               <div
-                className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold"
+                className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg rgb-glow"
                 style={{
-                  background: "oklch(0.72 0.22 195 / 0.1)",
-                  color: "oklch(0.72 0.22 195)",
-                  border: "1px solid oklch(0.72 0.22 195 / 0.25)",
+                  background:
+                    "linear-gradient(135deg, oklch(0.15 0.08 220) 0%, oklch(0.55 0.2 195 / 0.8) 100%)",
+                  boxShadow: "0 0 32px 8px oklch(0.72 0.22 195 / 0.4)",
                 }}
               >
-                <Shield className="w-3 h-3" />
-                Private &amp; Secure
+                <Wallet
+                  className="w-9 h-9"
+                  style={{ color: "oklch(0.97 0.005 240)" }}
+                />
               </div>
-            </div>
+            </motion.div>
+            <h1 className="text-4xl font-display font-bold text-foreground tracking-tight neon-text">
+              MyID Vault
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1.5">
+              Store and access your IDs anywhere
+            </p>
+          </motion.div>
 
+          {/* Card container */}
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{
+              type: "spring",
+              stiffness: 280,
+              damping: 22,
+              delay: 0.15,
+            }}
+            className="w-full rounded-3xl border overflow-hidden rgb-glow-sm rgb-border"
+            style={{
+              background: "oklch(0.09 0.015 260 / 0.92)",
+              boxShadow:
+                "0 4px 24px -4px oklch(0.08 0.015 260 / 0.9), 0 0 0 1px oklch(0.22 0.03 260 / 0.8), 0 0 32px 4px oklch(0.72 0.22 195 / 0.08)",
+            }}
+          >
             <AnimatePresence mode="wait">
-              {/* ─────────────── LOGIN ─────────────── */}
-              {tab === "login" && (
-                <motion.form
-                  key="login-form"
-                  initial={{ opacity: 0, x: -20 }}
+              {/* ── AUTH VIEW (Login / Sign Up tabs) ───────────────────── */}
+              {view === "auth" && (
+                <motion.div
+                  key="auth"
+                  initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                  onSubmit={handleLogin}
-                  className="space-y-4"
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <div className="text-left">
-                    <h2 className="text-xl font-semibold text-foreground mb-1">
-                      Welcome back
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Sign in to access your ID vault
-                    </p>
-                  </div>
-
-                  <AnimatePresence>
-                    {errors.general && <ErrorBox message={errors.general} />}
-                  </AnimatePresence>
-
-                  {/* Username */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="login-username"
-                      className="text-sm font-medium text-foreground/80"
-                    >
-                      Username
-                    </Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="login-username"
-                        type="text"
-                        autoComplete="username"
-                        placeholder="Enter your username"
-                        value={loginUsername}
-                        onChange={(e) => setLoginUsername(e.target.value)}
-                        className={`pl-10 h-11 rounded-xl ${errors.username ? "border-destructive focus-visible:ring-destructive" : ""}`}
-                      />
-                    </div>
-                    {errors.username && (
-                      <p className="text-xs text-destructive">
-                        {errors.username}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Password */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="login-password"
-                      className="text-sm font-medium text-foreground/80"
-                    >
-                      Password
-                    </Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="login-password"
-                        type={showPassword ? "text" : "password"}
-                        autoComplete="current-password"
-                        placeholder="Enter your password"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        className={`pl-10 pr-10 h-11 rounded-xl ${errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
-                      />
+                  {/* Tab switcher */}
+                  <div
+                    className="flex relative border-b"
+                    style={{ borderColor: "oklch(0.22 0.03 260 / 0.6)" }}
+                  >
+                    {(["login", "signup"] as Tab[]).map((t) => (
                       <button
+                        key={t}
                         type="button"
-                        onClick={() => setShowPassword((p) => !p)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label={
-                          showPassword ? "Hide password" : "Show password"
-                        }
+                        data-ocid={`auth.${t}.tab`}
+                        onClick={() => setActiveTab(t)}
+                        className="flex-1 py-3.5 text-sm font-semibold tracking-wide capitalize relative transition-colors"
+                        style={{
+                          color:
+                            activeTab === t
+                              ? "oklch(0.72 0.22 195)"
+                              : "oklch(0.50 0.02 250)",
+                        }}
                       >
-                        {showPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
+                        {t === "login" ? "Login" : "Sign Up"}
+                        {activeTab === t && (
+                          <motion.div
+                            layoutId="tab-indicator"
+                            className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
+                            style={{
+                              background: "oklch(0.72 0.22 195)",
+                              boxShadow:
+                                "0 0 8px 2px oklch(0.72 0.22 195 / 0.5)",
+                            }}
+                          />
                         )}
                       </button>
-                    </div>
-                    {errors.password && (
-                      <p className="text-xs text-destructive">
-                        {errors.password}
-                      </p>
-                    )}
-                    {/* Forgot password link */}
-                    <div className="text-right">
-                      <button
-                        type="button"
-                        onClick={openForgot}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
+                    ))}
                   </div>
 
+                  <div className="p-5">
+                    <AnimatePresence mode="wait">
+                      {/* ── LOGIN TAB ─────────────────────────────────── */}
+                      {activeTab === "login" && (
+                        <motion.form
+                          key="login-form"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.2 }}
+                          onSubmit={handleLogin}
+                          className="space-y-4"
+                        >
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="login-username"
+                              className="text-xs font-semibold"
+                              style={{ color: "oklch(0.65 0.05 250)" }}
+                            >
+                              Username
+                            </Label>
+                            <div className="relative">
+                              <User
+                                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                                style={{ color: "oklch(0.45 0.03 250)" }}
+                              />
+                              <Input
+                                id="login-username"
+                                data-ocid="login.input"
+                                type="text"
+                                autoComplete="username"
+                                placeholder="your_username"
+                                value={loginUsername}
+                                onChange={(e) =>
+                                  setLoginUsername(e.target.value)
+                                }
+                                className="pl-9"
+                                style={inputStyle}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="login-password"
+                              className="text-xs font-semibold"
+                              style={{ color: "oklch(0.65 0.05 250)" }}
+                            >
+                              Password
+                            </Label>
+                            <div className="relative">
+                              <KeyRound
+                                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                                style={{ color: "oklch(0.45 0.03 250)" }}
+                              />
+                              <Input
+                                id="login-password"
+                                data-ocid="login.password.input"
+                                type={loginShowPw ? "text" : "password"}
+                                autoComplete="current-password"
+                                placeholder="••••••••"
+                                value={loginPassword}
+                                onChange={(e) =>
+                                  setLoginPassword(e.target.value)
+                                }
+                                className="pl-9 pr-10"
+                                style={inputStyle}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setLoginShowPw((v) => !v)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5"
+                                style={{ color: "oklch(0.45 0.03 250)" }}
+                                aria-label={
+                                  loginShowPw
+                                    ? "Hide password"
+                                    : "Show password"
+                                }
+                              >
+                                {loginShowPw ? (
+                                  <EyeOff className="w-4 h-4" />
+                                ) : (
+                                  <Eye className="w-4 h-4" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          <ErrorBlock msg={loginError} id="login.error_state" />
+
+                          <motion.button
+                            type="submit"
+                            data-ocid="login.primary_button"
+                            disabled={loginLoading}
+                            className="w-full py-3 rounded-xl text-sm font-bold btn-auto-glow flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                            style={{
+                              background:
+                                "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
+                              color: "oklch(0.97 0.005 240)",
+                            }}
+                            whileTap={loginLoading ? {} : { scale: 0.97 }}
+                            whileHover={loginLoading ? {} : { scale: 1.01 }}
+                          >
+                            {loginLoading ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Logging in…</span>
+                              </>
+                            ) : (
+                              <>
+                                <ShieldCheck className="w-4 h-4" />
+                                <span>Login</span>
+                              </>
+                            )}
+                          </motion.button>
+
+                          <button
+                            type="button"
+                            data-ocid="login.forgot.button"
+                            onClick={() => {
+                              setForgotUsername("");
+                              setForgotError("");
+                              setView("forgot-step1");
+                            }}
+                            className="w-full text-center text-xs pt-1 transition-colors"
+                            style={{ color: "oklch(0.60 0.12 195)" }}
+                          >
+                            Forgot password?
+                          </button>
+                        </motion.form>
+                      )}
+
+                      {/* ── SIGN UP TAB ───────────────────────────────── */}
+                      {activeTab === "signup" && (
+                        <motion.form
+                          key="signup-form"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.2 }}
+                          onSubmit={handleSignup}
+                          className="space-y-3.5"
+                        >
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="signup-name"
+                              className="text-xs font-semibold"
+                              style={{ color: "oklch(0.65 0.05 250)" }}
+                            >
+                              Full Name
+                            </Label>
+                            <Input
+                              id="signup-name"
+                              data-ocid="signup.name.input"
+                              type="text"
+                              autoComplete="name"
+                              placeholder="Ankush Singh"
+                              value={signupName}
+                              onChange={(e) => setSignupName(e.target.value)}
+                              style={inputStyle}
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="signup-username"
+                              className="text-xs font-semibold"
+                              style={{ color: "oklch(0.65 0.05 250)" }}
+                            >
+                              Username
+                            </Label>
+                            <Input
+                              id="signup-username"
+                              data-ocid="signup.username.input"
+                              type="text"
+                              autoComplete="username"
+                              placeholder="your_username"
+                              value={signupUsername}
+                              onChange={(e) =>
+                                setSignupUsername(e.target.value)
+                              }
+                              style={inputStyle}
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="signup-password"
+                              className="text-xs font-semibold"
+                              style={{ color: "oklch(0.65 0.05 250)" }}
+                            >
+                              Password
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id="signup-password"
+                                data-ocid="signup.password.input"
+                                type={signupShowPw ? "text" : "password"}
+                                autoComplete="new-password"
+                                placeholder="Min 6 characters"
+                                value={signupPassword}
+                                onChange={(e) =>
+                                  setSignupPassword(e.target.value)
+                                }
+                                className="pr-10"
+                                style={inputStyle}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setSignupShowPw((v) => !v)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5"
+                                style={{ color: "oklch(0.45 0.03 250)" }}
+                                aria-label={
+                                  signupShowPw
+                                    ? "Hide password"
+                                    : "Show password"
+                                }
+                              >
+                                {signupShowPw ? (
+                                  <EyeOff className="w-4 h-4" />
+                                ) : (
+                                  <Eye className="w-4 h-4" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="signup-confirm"
+                              className="text-xs font-semibold"
+                              style={{ color: "oklch(0.65 0.05 250)" }}
+                            >
+                              Confirm Password
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id="signup-confirm"
+                                data-ocid="signup.confirm.input"
+                                type={signupShowConfirm ? "text" : "password"}
+                                autoComplete="new-password"
+                                placeholder="Re-enter password"
+                                value={signupConfirm}
+                                onChange={(e) =>
+                                  setSignupConfirm(e.target.value)
+                                }
+                                className="pr-10"
+                                style={inputStyle}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setSignupShowConfirm((v) => !v)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5"
+                                style={{ color: "oklch(0.45 0.03 250)" }}
+                                aria-label={
+                                  signupShowConfirm
+                                    ? "Hide password"
+                                    : "Show password"
+                                }
+                              >
+                                {signupShowConfirm ? (
+                                  <EyeOff className="w-4 h-4" />
+                                ) : (
+                                  <Eye className="w-4 h-4" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label
+                              className="text-xs font-semibold"
+                              style={{ color: "oklch(0.65 0.05 250)" }}
+                            >
+                              Security Question
+                            </Label>
+                            <Select
+                              value={signupQuestion}
+                              onValueChange={setSignupQuestion}
+                            >
+                              <SelectTrigger
+                                data-ocid="signup.question.select"
+                                className="text-sm"
+                                style={{
+                                  ...inputStyle,
+                                  height: "auto",
+                                  minHeight: "2.5rem",
+                                }}
+                              >
+                                <SelectValue placeholder="Choose a question…" />
+                              </SelectTrigger>
+                              <SelectContent
+                                style={{
+                                  background: "oklch(0.10 0.015 260)",
+                                  border: "1px solid oklch(0.25 0.03 260)",
+                                }}
+                              >
+                                {SECURITY_QUESTIONS.map((q) => (
+                                  <SelectItem
+                                    key={q}
+                                    value={q}
+                                    className="text-xs"
+                                    style={{ color: "oklch(0.85 0.01 250)" }}
+                                  >
+                                    {q}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="signup-answer"
+                              className="text-xs font-semibold"
+                              style={{ color: "oklch(0.65 0.05 250)" }}
+                            >
+                              Answer
+                            </Label>
+                            <Input
+                              id="signup-answer"
+                              data-ocid="signup.answer.input"
+                              type="text"
+                              autoComplete="off"
+                              placeholder="Your answer"
+                              value={signupAnswer}
+                              onChange={(e) => setSignupAnswer(e.target.value)}
+                              style={inputStyle}
+                            />
+                          </div>
+
+                          <ErrorBlock
+                            msg={signupError}
+                            id="signup.error_state"
+                          />
+
+                          <motion.button
+                            type="submit"
+                            data-ocid="signup.primary_button"
+                            disabled={signupLoading}
+                            className="w-full py-3 rounded-xl text-sm font-bold btn-auto-glow-delay-1 flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                            style={{
+                              background:
+                                "linear-gradient(135deg, oklch(0.15 0.08 260), oklch(0.50 0.25 300))",
+                              color: "oklch(0.97 0.005 240)",
+                            }}
+                            whileTap={signupLoading ? {} : { scale: 0.97 }}
+                            whileHover={signupLoading ? {} : { scale: 1.01 }}
+                          >
+                            {signupLoading ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Creating account…</span>
+                              </>
+                            ) : (
+                              <>
+                                <ShieldCheck className="w-4 h-4" />
+                                <span>Create Account</span>
+                              </>
+                            )}
+                          </motion.button>
+                        </motion.form>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ── FORGOT — STEP 1: Enter username ───────────────────── */}
+              {view === "forgot-step1" && (
+                <motion.div
+                  key="forgot-step1"
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -30 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="p-5"
+                >
+                  <button
+                    type="button"
+                    data-ocid="forgot.back.button"
+                    onClick={() => setView("auth")}
+                    className="flex items-center gap-1.5 text-xs mb-4 transition-colors"
+                    style={{ color: "oklch(0.55 0.02 250)" }}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Back to login
+                  </button>
+
+                  <h2
+                    className="text-lg font-bold mb-1"
+                    style={{ color: "oklch(0.92 0.01 250)" }}
+                  >
+                    Forgot Password
+                  </h2>
+                  <p
+                    className="text-xs mb-5"
+                    style={{ color: "oklch(0.52 0.02 250)" }}
+                  >
+                    Step 1 of 3 — Enter your username
+                  </p>
+
+                  <form onSubmit={handleForgotStep1} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="forgot-username"
+                        className="text-xs font-semibold"
+                        style={{ color: "oklch(0.65 0.05 250)" }}
+                      >
+                        Username
+                      </Label>
+                      <Input
+                        id="forgot-username"
+                        data-ocid="forgot.username.input"
+                        type="text"
+                        autoComplete="username"
+                        placeholder="your_username"
+                        value={forgotUsername}
+                        onChange={(e) => setForgotUsername(e.target.value)}
+                        style={inputStyle}
+                      />
+                    </div>
+                    <ErrorBlock msg={forgotError} id="forgot.error_state" />
+                    <Button
+                      type="submit"
+                      data-ocid="forgot.step1.submit_button"
+                      className="w-full btn-auto-glow-delay-2"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
+                        color: "oklch(0.97 0.005 240)",
+                      }}
+                    >
+                      Continue
+                    </Button>
+                  </form>
+                </motion.div>
+              )}
+
+              {/* ── FORGOT — STEP 2: Answer security question ─────────── */}
+              {view === "forgot-step2" && (
+                <motion.div
+                  key="forgot-step2"
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -30 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="p-5"
+                >
+                  <button
+                    type="button"
+                    data-ocid="forgot.back2.button"
+                    onClick={() => {
+                      setForgotError("");
+                      setView("forgot-step1");
+                    }}
+                    className="flex items-center gap-1.5 text-xs mb-4 transition-colors"
+                    style={{ color: "oklch(0.55 0.02 250)" }}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Back
+                  </button>
+
+                  <h2
+                    className="text-lg font-bold mb-1"
+                    style={{ color: "oklch(0.92 0.01 250)" }}
+                  >
+                    Security Question
+                  </h2>
+                  <p
+                    className="text-xs mb-5"
+                    style={{ color: "oklch(0.52 0.02 250)" }}
+                  >
+                    Step 2 of 3 — Answer your security question
+                  </p>
+
+                  <form onSubmit={handleForgotStep2} className="space-y-4">
+                    <div
+                      className="rounded-xl px-3 py-2.5 text-sm"
+                      style={{
+                        background: "oklch(0.72 0.22 195 / 0.08)",
+                        border: "1px solid oklch(0.72 0.22 195 / 0.2)",
+                        color: "oklch(0.72 0.22 195)",
+                      }}
+                    >
+                      {forgotQuestion}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="forgot-answer"
+                        className="text-xs font-semibold"
+                        style={{ color: "oklch(0.65 0.05 250)" }}
+                      >
+                        Your Answer
+                      </Label>
+                      <Input
+                        id="forgot-answer"
+                        data-ocid="forgot.answer.input"
+                        type="text"
+                        autoComplete="off"
+                        placeholder="Enter your answer"
+                        value={forgotAnswer}
+                        onChange={(e) => setForgotAnswer(e.target.value)}
+                        style={inputStyle}
+                      />
+                    </div>
+                    <ErrorBlock
+                      msg={forgotError}
+                      id="forgot.step2.error_state"
+                    />
+                    <Button
+                      type="submit"
+                      data-ocid="forgot.step2.submit_button"
+                      className="w-full"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
+                        color: "oklch(0.97 0.005 240)",
+                      }}
+                    >
+                      Verify Answer
+                    </Button>
+                  </form>
+                </motion.div>
+              )}
+
+              {/* ── FORGOT — STEP 3: New password ─────────────────────── */}
+              {view === "forgot-step3" && (
+                <motion.div
+                  key="forgot-step3"
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -30 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="p-5"
+                >
+                  <button
+                    type="button"
+                    data-ocid="forgot.back3.button"
+                    onClick={() => {
+                      setForgotError("");
+                      setView("forgot-step2");
+                    }}
+                    className="flex items-center gap-1.5 text-xs mb-4 transition-colors"
+                    style={{ color: "oklch(0.55 0.02 250)" }}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Back
+                  </button>
+
+                  <h2
+                    className="text-lg font-bold mb-1"
+                    style={{ color: "oklch(0.92 0.01 250)" }}
+                  >
+                    New Password
+                  </h2>
+                  <p
+                    className="text-xs mb-5"
+                    style={{ color: "oklch(0.52 0.02 250)" }}
+                  >
+                    Step 3 of 3 — Choose a new password
+                  </p>
+
+                  <form onSubmit={handleForgotStep3} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="forgot-newpw"
+                        className="text-xs font-semibold"
+                        style={{ color: "oklch(0.65 0.05 250)" }}
+                      >
+                        New Password
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="forgot-newpw"
+                          data-ocid="forgot.newpw.input"
+                          type={forgotShowNew ? "text" : "password"}
+                          autoComplete="new-password"
+                          placeholder="Min 6 characters"
+                          value={forgotNewPw}
+                          onChange={(e) => setForgotNewPw(e.target.value)}
+                          className="pr-10"
+                          style={inputStyle}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setForgotShowNew((v) => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5"
+                          style={{ color: "oklch(0.45 0.03 250)" }}
+                          aria-label={
+                            forgotShowNew ? "Hide password" : "Show password"
+                          }
+                        >
+                          {forgotShowNew ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="forgot-confirmpw"
+                        className="text-xs font-semibold"
+                        style={{ color: "oklch(0.65 0.05 250)" }}
+                      >
+                        Confirm New Password
+                      </Label>
+                      <Input
+                        id="forgot-confirmpw"
+                        data-ocid="forgot.confirmpw.input"
+                        type="password"
+                        autoComplete="new-password"
+                        placeholder="Re-enter new password"
+                        value={forgotConfirmPw}
+                        onChange={(e) => setForgotConfirmPw(e.target.value)}
+                        style={inputStyle}
+                      />
+                    </div>
+
+                    <ErrorBlock
+                      msg={forgotError}
+                      id="forgot.step3.error_state"
+                    />
+
+                    <Button
+                      type="submit"
+                      data-ocid="forgot.step3.submit_button"
+                      disabled={forgotLoading}
+                      className="w-full"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
+                        color: "oklch(0.97 0.005 240)",
+                      }}
+                    >
+                      {forgotLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : null}
+                      Reset Password
+                    </Button>
+                  </form>
+                </motion.div>
+              )}
+
+              {/* ── FORGOT — SUCCESS ──────────────────────────────────── */}
+              {view === "forgot-success" && (
+                <motion.div
+                  key="forgot-success"
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  className="p-8 flex flex-col items-center text-center gap-4"
+                  data-ocid="forgot.success_state"
+                >
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                    className="w-16 h-16 rounded-full flex items-center justify-center"
+                    style={{
+                      background: "oklch(0.75 0.2 160 / 0.15)",
+                      border: "2px solid oklch(0.75 0.2 160 / 0.4)",
+                    }}
+                  >
+                    <CheckCircle2
+                      className="w-8 h-8"
+                      style={{ color: "oklch(0.75 0.2 160)" }}
+                    />
+                  </motion.div>
+                  <div>
+                    <p
+                      className="text-base font-bold"
+                      style={{ color: "oklch(0.92 0.01 250)" }}
+                    >
+                      Password Reset!
+                    </p>
+                    <p
+                      className="text-xs mt-1"
+                      style={{ color: "oklch(0.52 0.02 250)" }}
+                    >
+                      Your password has been updated successfully.
+                    </p>
+                  </div>
                   <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full h-11 text-base font-semibold rounded-xl btn-auto-glow mt-2"
+                    data-ocid="forgot.goto_login.button"
+                    onClick={() => {
+                      resetForgotFlow();
+                      setView("auth");
+                      setActiveTab("login");
+                    }}
+                    className="btn-auto-glow"
                     style={{
                       background:
                         "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
                       color: "oklch(0.97 0.005 240)",
                     }}
                   >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Signing in...
-                      </>
-                    ) : (
-                      "Login"
-                    )}
+                    Go to Login
                   </Button>
-
-                  {isSubmitting && (
-                    <p className="text-xs text-center text-muted-foreground">
-                      Establishing secure identity...
-                    </p>
-                  )}
-
-                  <p className="text-xs text-center text-muted-foreground pt-1">
-                    Don't have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => switchTab("signup")}
-                      className="underline underline-offset-2 hover:text-foreground transition-colors font-medium"
-                    >
-                      Sign up
-                    </button>
-                  </p>
-                </motion.form>
-              )}
-
-              {/* ─────────────── SIGN UP ─────────────── */}
-              {tab === "signup" && (
-                <motion.form
-                  key="signup-form"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                  onSubmit={handleSignup}
-                  className="space-y-4"
-                >
-                  <div className="text-left">
-                    <h2 className="text-xl font-semibold text-foreground mb-1">
-                      Create your vault
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Set up your account to get started
-                    </p>
-                  </div>
-
-                  <AnimatePresence>
-                    {errors.general && <ErrorBox message={errors.general} />}
-                  </AnimatePresence>
-
-                  {/* Full Name */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="signup-name"
-                      className="text-sm font-medium text-foreground/80"
-                    >
-                      Full Name
-                    </Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="signup-name"
-                        type="text"
-                        autoComplete="name"
-                        placeholder="Your full name"
-                        value={signupName}
-                        onChange={(e) => setSignupName(e.target.value)}
-                        className={`pl-10 h-11 rounded-xl ${errors.name ? "border-destructive" : ""}`}
-                      />
-                    </div>
-                    {errors.name && (
-                      <p className="text-xs text-destructive">{errors.name}</p>
-                    )}
-                  </div>
-
-                  {/* Username */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="signup-username"
-                      className="text-sm font-medium text-foreground/80"
-                    >
-                      Username
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
-                        @
-                      </span>
-                      <Input
-                        id="signup-username"
-                        type="text"
-                        autoComplete="username"
-                        placeholder="choose_a_username"
-                        value={signupUsername}
-                        onChange={(e) => setSignupUsername(e.target.value)}
-                        className={`pl-8 h-11 rounded-xl ${errors.username ? "border-destructive" : ""}`}
-                      />
-                    </div>
-                    {errors.username && (
-                      <p className="text-xs text-destructive">
-                        {errors.username}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Password */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="signup-password"
-                      className="text-sm font-medium text-foreground/80"
-                    >
-                      Password
-                    </Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="signup-password"
-                        type={showPassword ? "text" : "password"}
-                        autoComplete="new-password"
-                        placeholder="Min. 6 characters"
-                        value={signupPassword}
-                        onChange={(e) => setSignupPassword(e.target.value)}
-                        className={`pl-10 pr-10 h-11 rounded-xl ${errors.password ? "border-destructive" : ""}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((p) => !p)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label={
-                          showPassword ? "Hide password" : "Show password"
-                        }
-                      >
-                        {showPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                    {errors.password && (
-                      <p className="text-xs text-destructive">
-                        {errors.password}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Confirm Password */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="signup-confirm"
-                      className="text-sm font-medium text-foreground/80"
-                    >
-                      Confirm Password
-                    </Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="signup-confirm"
-                        type={showConfirmPassword ? "text" : "password"}
-                        autoComplete="new-password"
-                        placeholder="Re-enter your password"
-                        value={signupConfirmPassword}
-                        onChange={(e) =>
-                          setSignupConfirmPassword(e.target.value)
-                        }
-                        className={`pl-10 pr-10 h-11 rounded-xl ${errors.confirmPassword ? "border-destructive" : ""}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword((p) => !p)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label={
-                          showConfirmPassword
-                            ? "Hide password"
-                            : "Show password"
-                        }
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                    {errors.confirmPassword && (
-                      <p className="text-xs text-destructive">
-                        {errors.confirmPassword}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Security Question */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="signup-security-question"
-                      className="text-sm font-medium text-foreground/80"
-                    >
-                      Security Question
-                    </Label>
-                    <div className="relative">
-                      <HelpCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
-                      <select
-                        id="signup-security-question"
-                        value={signupSecurityQuestion}
-                        onChange={(e) =>
-                          setSignupSecurityQuestion(e.target.value)
-                        }
-                        className={`w-full h-11 pl-10 pr-4 rounded-xl text-sm appearance-none border bg-background text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 ${
-                          errors.securityQuestion
-                            ? "border-destructive"
-                            : "border-input"
-                        }`}
-                        style={{ backgroundImage: "none" }}
-                      >
-                        <option value="" disabled>
-                          Select a question...
-                        </option>
-                        {SECURITY_QUESTIONS.map((q) => (
-                          <option key={q} value={q}>
-                            {q}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                          role="img"
-                          aria-label="dropdown chevron"
-                        >
-                          <title>dropdown chevron</title>
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    {errors.securityQuestion && (
-                      <p className="text-xs text-destructive">
-                        {errors.securityQuestion}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Security Answer */}
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="signup-security-answer"
-                      className="text-sm font-medium text-foreground/80"
-                    >
-                      Security Answer
-                    </Label>
-                    <div className="relative">
-                      <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="signup-security-answer"
-                        type="text"
-                        placeholder="Your answer (remember this!)"
-                        value={signupSecurityAnswer}
-                        onChange={(e) =>
-                          setSignupSecurityAnswer(e.target.value)
-                        }
-                        className={`pl-10 h-11 rounded-xl ${errors.securityAnswer ? "border-destructive" : ""}`}
-                      />
-                    </div>
-                    {errors.securityAnswer && (
-                      <p className="text-xs text-destructive">
-                        {errors.securityAnswer}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      This is used to recover your account if you forget your
-                      password.
-                    </p>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full h-11 text-base font-semibold rounded-xl btn-auto-glow-delay-1 mt-2"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, oklch(0.2 0.1 280), oklch(0.5 0.25 300))",
-                      color: "oklch(0.97 0.005 240)",
-                    }}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Creating vault...
-                      </>
-                    ) : (
-                      "Create Account"
-                    )}
-                  </Button>
-
-                  {isSubmitting && (
-                    <p className="text-xs text-center text-muted-foreground">
-                      Establishing secure identity...
-                    </p>
-                  )}
-
-                  <p className="text-xs text-center text-muted-foreground pt-1">
-                    Already have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => switchTab("login")}
-                      className="underline underline-offset-2 hover:text-foreground transition-colors font-medium"
-                    >
-                      Login
-                    </button>
-                  </p>
-                </motion.form>
-              )}
-
-              {/* ─────────────── FORGOT PASSWORD ─────────────── */}
-              {tab === "forgot" && (
-                <motion.div
-                  key="forgot-flow"
-                  initial={{ opacity: 0, x: 30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -30 }}
-                  transition={{ duration: 0.26, ease: "easeOut" }}
-                  className="space-y-4"
-                >
-                  {/* Header */}
-                  <div className="text-left">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div
-                        className="w-7 h-7 rounded-lg flex items-center justify-center"
-                        style={{
-                          background: "oklch(0.72 0.22 195 / 0.12)",
-                        }}
-                      >
-                        <KeyRound
-                          className="w-3.5 h-3.5"
-                          style={{ color: "oklch(0.72 0.22 195)" }}
-                        />
-                      </div>
-                      <h2 className="text-xl font-semibold text-foreground">
-                        Reset Password
-                      </h2>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Answer your security question to reset your password.
-                    </p>
-                  </div>
-
-                  {/* Step indicator */}
-                  <StepIndicator current={forgotStep} total={3} />
-
-                  {/* Step forms */}
-                  <AnimatePresence mode="wait">
-                    {/* Step 1 — Enter username */}
-                    {forgotStep === 1 && (
-                      <motion.form
-                        key="forgot-step-1"
-                        initial={{ opacity: 0, x: forgotSlideDir(1) }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -30 }}
-                        transition={{ duration: 0.22, ease: "easeOut" }}
-                        onSubmit={handleForgotStep1}
-                        className="space-y-4"
-                      >
-                        <AnimatePresence>
-                          {errors.general && (
-                            <ErrorBox message={errors.general} />
-                          )}
-                        </AnimatePresence>
-
-                        <div className="space-y-1.5">
-                          <Label
-                            htmlFor="forgot-username"
-                            className="text-sm font-medium text-foreground/80"
-                          >
-                            Username
-                          </Label>
-                          <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                              id="forgot-username"
-                              type="text"
-                              autoComplete="username"
-                              placeholder="Enter your username"
-                              value={forgotUsername}
-                              onChange={(e) =>
-                                setForgotUsername(e.target.value)
-                              }
-                              className={`pl-10 h-11 rounded-xl ${errors.username ? "border-destructive" : ""}`}
-                            />
-                          </div>
-                          {errors.username && (
-                            <p className="text-xs text-destructive">
-                              {errors.username}
-                            </p>
-                          )}
-                        </div>
-
-                        <Button
-                          type="submit"
-                          className="w-full h-11 text-base font-semibold rounded-xl btn-auto-glow"
-                          style={{
-                            background:
-                              "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
-                            color: "oklch(0.97 0.005 240)",
-                          }}
-                        >
-                          Continue
-                        </Button>
-                      </motion.form>
-                    )}
-
-                    {/* Step 2 — Answer security question */}
-                    {forgotStep === 2 && (
-                      <motion.form
-                        key="forgot-step-2"
-                        initial={{ opacity: 0, x: 30 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -30 }}
-                        transition={{ duration: 0.22, ease: "easeOut" }}
-                        onSubmit={handleForgotStep2}
-                        className="space-y-4"
-                      >
-                        <AnimatePresence>
-                          {errors.general && (
-                            <ErrorBox message={errors.general} />
-                          )}
-                        </AnimatePresence>
-
-                        {/* Security question display */}
-                        <div
-                          className="rounded-xl px-4 py-3 text-sm font-medium text-left"
-                          style={{
-                            background: "oklch(0.65 0.28 300 / 0.08)",
-                            border: "1px solid oklch(0.65 0.28 300 / 0.25)",
-                            color: "oklch(0.8 0.15 300)",
-                          }}
-                        >
-                          <p className="text-xs uppercase tracking-wide font-semibold mb-1 opacity-70">
-                            Your security question
-                          </p>
-                          <p>{forgotQuestion}</p>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <Label
-                            htmlFor="forgot-answer"
-                            className="text-sm font-medium text-foreground/80"
-                          >
-                            Your Answer
-                          </Label>
-                          <div className="relative">
-                            <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                              id="forgot-answer"
-                              type="text"
-                              placeholder="Type your answer"
-                              value={forgotAnswer}
-                              onChange={(e) => setForgotAnswer(e.target.value)}
-                              className={`pl-10 h-11 rounded-xl ${errors.securityAnswer ? "border-destructive" : ""}`}
-                            />
-                          </div>
-                          {errors.securityAnswer && (
-                            <p className="text-xs text-destructive">
-                              {errors.securityAnswer}
-                            </p>
-                          )}
-                        </div>
-
-                        <Button
-                          type="submit"
-                          className="w-full h-11 text-base font-semibold rounded-xl btn-auto-glow-delay-1"
-                          style={{
-                            background:
-                              "linear-gradient(135deg, oklch(0.2 0.1 280), oklch(0.5 0.25 300))",
-                            color: "oklch(0.97 0.005 240)",
-                          }}
-                        >
-                          Verify Answer
-                        </Button>
-                      </motion.form>
-                    )}
-
-                    {/* Step 3 — Set new password */}
-                    {forgotStep === 3 && (
-                      <motion.form
-                        key="forgot-step-3"
-                        initial={{ opacity: 0, x: 30 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -30 }}
-                        transition={{ duration: 0.22, ease: "easeOut" }}
-                        onSubmit={handleForgotStep3}
-                        className="space-y-4"
-                      >
-                        <AnimatePresence>
-                          {errors.general && (
-                            <ErrorBox message={errors.general} />
-                          )}
-                        </AnimatePresence>
-
-                        <div className="space-y-1.5">
-                          <Label
-                            htmlFor="forgot-new-password"
-                            className="text-sm font-medium text-foreground/80"
-                          >
-                            New Password
-                          </Label>
-                          <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                              id="forgot-new-password"
-                              type={showForgotPassword ? "text" : "password"}
-                              autoComplete="new-password"
-                              placeholder="Min. 6 characters"
-                              value={forgotNewPassword}
-                              onChange={(e) =>
-                                setForgotNewPassword(e.target.value)
-                              }
-                              className={`pl-10 pr-10 h-11 rounded-xl ${errors.password ? "border-destructive" : ""}`}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowForgotPassword((p) => !p)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                              aria-label={
-                                showForgotPassword
-                                  ? "Hide password"
-                                  : "Show password"
-                              }
-                            >
-                              {showForgotPassword ? (
-                                <EyeOff className="w-4 h-4" />
-                              ) : (
-                                <Eye className="w-4 h-4" />
-                              )}
-                            </button>
-                          </div>
-                          {errors.password && (
-                            <p className="text-xs text-destructive">
-                              {errors.password}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <Label
-                            htmlFor="forgot-confirm-password"
-                            className="text-sm font-medium text-foreground/80"
-                          >
-                            Confirm New Password
-                          </Label>
-                          <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                              id="forgot-confirm-password"
-                              type={showForgotPassword ? "text" : "password"}
-                              autoComplete="new-password"
-                              placeholder="Re-enter new password"
-                              value={forgotConfirmPassword}
-                              onChange={(e) =>
-                                setForgotConfirmPassword(e.target.value)
-                              }
-                              className={`pl-10 h-11 rounded-xl ${errors.confirmPassword ? "border-destructive" : ""}`}
-                            />
-                          </div>
-                          {errors.confirmPassword && (
-                            <p className="text-xs text-destructive">
-                              {errors.confirmPassword}
-                            </p>
-                          )}
-                        </div>
-
-                        <Button
-                          type="submit"
-                          disabled={isSubmitting}
-                          className="w-full h-11 text-base font-semibold rounded-xl btn-auto-glow-delay-2"
-                          style={{
-                            background:
-                              "linear-gradient(135deg, oklch(0.15 0.08 155), oklch(0.5 0.2 160))",
-                            color: "oklch(0.97 0.005 240)",
-                          }}
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Resetting...
-                            </>
-                          ) : (
-                            "Reset Password"
-                          )}
-                        </Button>
-                      </motion.form>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Back to Login link */}
-                  <button
-                    type="button"
-                    onClick={goBackToLogin}
-                    className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" />
-                    Back to Login
-                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        </motion.div>
+          </motion.div>
 
-        {/* Feature hints */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.7 }}
-          className="mt-8 grid grid-cols-3 gap-4 w-full"
-        >
-          {[
-            {
-              label: "Offline Ready",
-              desc: "Access IDs anytime",
-              color: "oklch(0.72 0.22 195)",
-            },
-            {
-              label: "Private",
-              desc: "Only you can see it",
-              color: "oklch(0.65 0.28 300)",
-            },
-            {
-              label: "Secure",
-              desc: "Encrypted storage",
-              color: "oklch(0.75 0.2 160)",
-            },
-          ].map((f, i) => (
+          {/* Feature pills */}
+          {view === "auth" && (
             <motion.div
-              key={f.label}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.75 + i * 0.07 }}
-              className="text-center"
+              transition={{ duration: 0.5, delay: 0.7 }}
+              className="mt-6 grid grid-cols-3 gap-3 w-full"
             >
-              <p className="text-xs font-semibold" style={{ color: f.color }}>
-                {f.label}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">{f.desc}</p>
+              {[
+                {
+                  label: "Offline Ready",
+                  desc: "Access IDs anytime",
+                  color: "oklch(0.72 0.22 195)",
+                },
+                {
+                  label: "Private",
+                  desc: "Only you can see it",
+                  color: "oklch(0.65 0.28 300)",
+                },
+                {
+                  label: "Secure",
+                  desc: "Password protected",
+                  color: "oklch(0.75 0.2 160)",
+                },
+              ].map((f, i) => (
+                <motion.div
+                  key={f.label}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.75 + i * 0.07 }}
+                  className="text-center"
+                >
+                  <p
+                    className="text-xs font-semibold"
+                    style={{ color: f.color }}
+                  >
+                    {f.label}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {f.desc}
+                  </p>
+                </motion.div>
+              ))}
             </motion.div>
-          ))}
-        </motion.div>
-      </main>
+          )}
+        </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 mt-auto py-6 text-center text-xs text-muted-foreground space-y-1">
-        <p className="font-medium text-foreground/70">
-          Made with <span className="text-red-500">♥️</span> by Ankush Singh |
-          Caffeine For Students
-        </p>
-        <p>© 2026 All Rights Reserved</p>
-      </footer>
-
-      <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          15%       { transform: translateX(-6px); }
-          30%       { transform: translateX(6px); }
-          45%       { transform: translateX(-5px); }
-          60%       { transform: translateX(5px); }
-          75%       { transform: translateX(-3px); }
-          90%       { transform: translateX(3px); }
-        }
-        .animate-shake {
-          animation: shake 0.6s ease-in-out;
-        }
-      `}</style>
-    </div>
+        {/* Footer */}
+        <footer className="relative z-10 mt-auto py-6 text-center text-xs text-muted-foreground space-y-1">
+          <p className="font-medium text-foreground/70">
+            Made with <span className="text-red-500">♥️</span> by Ankush Singh |
+            Caffeine For Students
+          </p>
+          <p>© 2026 All Rights Reserved</p>
+        </footer>
+      </div>
+    </>
   );
 }

@@ -5,10 +5,14 @@
  * to re-render when the user changes their background in Settings.
  */
 import { useEffect, useRef, useState } from "react";
-import type { BackgroundSetting } from "../hooks/usePasswordAuth";
 import NeonRainBackground from "./NeonRainBackground";
 
-const SETTINGS_KEY_PREFIX = "myid-vault-settings-";
+export interface BackgroundSetting {
+  type: "neon" | "preset" | "custom" | "video";
+  value?: string;
+}
+
+const SETTINGS_KEY = "myid-vault-settings-ii";
 
 const DEFAULT_BG: BackgroundSetting = { type: "preset", value: "aurora" };
 
@@ -26,10 +30,9 @@ const VIDEO_SOURCES: Record<string, string> = {
     "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-city-traffic-at-night-11-large.mp4",
 };
 
-function readBackground(username?: string): BackgroundSetting {
-  if (!username) return DEFAULT_BG;
+function readBackground(_username?: string): BackgroundSetting {
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY_PREFIX + username);
+    const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return DEFAULT_BG;
     const parsed = JSON.parse(raw) as { background?: BackgroundSetting };
     return parsed.background ?? DEFAULT_BG;

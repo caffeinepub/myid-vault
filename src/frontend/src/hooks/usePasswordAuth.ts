@@ -174,6 +174,13 @@ export function usePasswordAuth() {
       if (!account) {
         throw new Error("No account found for this username.");
       }
+      // Check if user is banned
+      const banned = adminGetBanned();
+      if (banned.includes(key)) {
+        throw new Error(
+          "Your account has been suspended. Please contact the administrator.",
+        );
+      }
       const passwordHash = await hashPassword(password);
       if (passwordHash !== account.passwordHash) {
         throw new Error("Incorrect password. Please try again.");
@@ -294,4 +301,145 @@ export function usePasswordAuth() {
     getSettings,
     updateSettings,
   };
+}
+
+// ─────────────────────────────────────────────────────────
+// Admin helper functions (standalone, not inside the hook)
+// ─────────────────────────────────────────────────────────
+
+const ADMIN_SESSION_KEY = "myid-vault-admin-session";
+const BANNED_KEY = "myid-vault-banned";
+// Suppress unused-variable warnings — these constants are used by the functions below
+void ADMIN_SESSION_KEY;
+void BANNED_KEY;
+
+export function adminLoadAccounts(): Record<
+  string,
+  { username: string; name: string; securityQuestion: string }
+> {
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    if (!raw) return {};
+    const all = JSON.parse(raw) as Record<
+      string,
+      {
+        username: string;
+        passwordHash: string;
+        name: string;
+        securityQuestion: string;
+        securityAnswerHash: string;
+      }
+    >;
+    const result: Record<
+      string,
+      { username: string; name: string; securityQuestion: string }
+    > = {};
+    for (const [k, v] of Object.entries(all)) {
+      result[k] = {
+        username: v.username,
+        name: v.name,
+        securityQuestion: v.securityQuestion || "",
+      };
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+export function adminGetUserIDCount(username: string): number {
+  try {
+    const raw = localStorage.getItem(`myid-vault-ids-${username}`);
+    if (!raw) return 0;
+    const cards = JSON.parse(raw) as unknown[];
+    return Array.isArray(cards) ? cards.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function adminGetUserIDs(
+  username: string,
+): import("./useLocalIDStore").LocalIDCard[] {
+  try {
+    const raw = localStorage.getItem(`myid-vault-ids-${username}`);
+    if (!raw) return [];
+    return JSON.parse(raw) as import("./useLocalIDStore").LocalIDCard[];
+  } catch {
+    return [];
+  }
+}
+
+export function adminDeleteAccount(username: string): void {
+  const accounts = (() => {
+    try {
+      const r = localStorage.getItem(ACCOUNTS_KEY);
+      return r ? (JSON.parse(r) as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  })();
+  delete accounts[username];
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+  localStorage.removeItem(`myid-vault-ids-${username}`);
+  localStorage.removeItem(`myid-vault-settings-${username}`);
+}
+
+export function adminResetPassword(
+  username: string,
+  newPassword: string,
+): Promise<void> {
+  return (async () => {
+    const accounts = (() => {
+      try {
+        const r = localStorage.getItem(ACCOUNTS_KEY);
+        return r
+          ? (JSON.parse(r) as Record<string, StoredAccount>)
+          : ({} as Record<string, StoredAccount>);
+      } catch {
+        return {} as Record<string, StoredAccount>;
+      }
+    })();
+    if (!accounts[username]) throw new Error("User not found");
+    const enc = new TextEncoder();
+    const buf = await crypto.subtle.digest("SHA-256", enc.encode(newPassword));
+    const hash = Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    accounts[username] = { ...accounts[username], passwordHash: hash };
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+  })();
+}
+
+export function adminGetBanned(): string[] {
+  try {
+    const r = localStorage.getItem("myid-vault-banned");
+    return r ? (JSON.parse(r) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function adminToggleBan(username: string): boolean {
+  const banned = adminGetBanned();
+  const idx = banned.indexOf(username);
+  if (idx >= 0) {
+    banned.splice(idx, 1);
+  } else {
+    banned.push(username);
+  }
+  localStorage.setItem("myid-vault-banned", JSON.stringify(banned));
+  return banned.includes(username);
+}
+
+export function adminSaveSession(): void {
+  sessionStorage.setItem("myid-vault-admin-session", "1");
+}
+
+export function adminClearSession(): void {
+  sessionStorage.removeItem("myid-vault-admin-session");
+}
+
+export function adminHasSession(): boolean {
+  return sessionStorage.getItem("myid-vault-admin-session") === "1";
 }

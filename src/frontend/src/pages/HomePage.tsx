@@ -1,16 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  AlertTriangle,
-  LogOut,
-  Plus,
-  Search,
-  Settings,
-  User,
-  Wallet,
-  X,
-} from "lucide-react";
+import { LogOut, Plus, Search, Settings, User, Wallet } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import type { AppPage } from "../App";
@@ -22,18 +13,15 @@ interface HomePageProps {
   navigate: (page: AppPage) => void;
   userName: string;
   onLogout: () => void;
-  hasSecurityQuestion: boolean;
 }
 
 export default function HomePage({
   navigate,
   userName,
   onLogout,
-  hasSecurityQuestion,
 }: HomePageProps) {
   const { data: cards, isLoading } = useGetAllCards();
   const [search, setSearch] = useState("");
-  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const filteredCards = (cards ?? []).filter((card) => {
     const q = search.toLowerCase();
@@ -50,8 +38,6 @@ export default function HomePage({
       o.fullName.toLowerCase().includes(q) || o.idType.toLowerCase().includes(q)
     );
   });
-
-  const showBanner = !hasSecurityQuestion && !bannerDismissed;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -134,14 +120,6 @@ export default function HomePage({
               className="relative flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0 btn-auto-glow-delay-1"
             >
               <Settings className="w-4 h-4" />
-              {/* Warning dot when no security question */}
-              {!hasSecurityQuestion && (
-                <span
-                  className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full border border-background"
-                  style={{ background: "oklch(0.7 0.18 55)" }}
-                  aria-label="Security question not set"
-                />
-              )}
             </button>
 
             {/* Logout button */}
@@ -167,68 +145,6 @@ export default function HomePage({
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6">
-        {/* Security question reminder banner */}
-        <AnimatePresence>
-          {showBanner && (
-            <motion.div
-              initial={{ opacity: 0, y: -12, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.97, height: 0 }}
-              transition={{ type: "spring", stiffness: 340, damping: 26 }}
-              className="mb-5 rounded-2xl px-4 py-3.5 flex items-start gap-3"
-              style={{
-                background: "oklch(0.62 0.26 25 / 0.1)",
-                border: "1.5px solid oklch(0.62 0.26 25 / 0.3)",
-              }}
-              role="alert"
-            >
-              <motion.div
-                animate={{ rotate: [0, -8, 8, -5, 5, 0] }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-                className="flex-shrink-0 mt-0.5"
-              >
-                <AlertTriangle
-                  className="w-4 h-4"
-                  style={{ color: "oklch(0.72 0.22 25)" }}
-                />
-              </motion.div>
-
-              <div className="flex-1 min-w-0">
-                <p
-                  className="text-sm font-semibold leading-snug"
-                  style={{ color: "oklch(0.82 0.15 25)" }}
-                >
-                  Protect your account
-                </p>
-                <p
-                  className="text-xs mt-0.5 leading-relaxed"
-                  style={{ color: "oklch(0.72 0.1 25)" }}
-                >
-                  Set up a recovery question in case you forget your password.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate({ type: "settings" })}
-                  className="mt-2 text-xs font-semibold underline underline-offset-2 transition-opacity hover:opacity-70"
-                  style={{ color: "oklch(0.82 0.2 25)" }}
-                >
-                  Set Up Now →
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setBannerDismissed(true)}
-                className="flex-shrink-0 rounded-lg p-1 transition-colors hover:bg-white/5"
-                style={{ color: "oklch(0.65 0.1 25)" }}
-                aria-label="Dismiss reminder"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Search — spring entrance */}
         {(cards ?? []).length > 0 && (
           <motion.div
@@ -271,6 +187,7 @@ export default function HomePage({
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col items-center justify-center py-20 px-6 text-center"
+            data-ocid="home.cards.empty_state"
           >
             {/* Floating vault icon */}
             <motion.div

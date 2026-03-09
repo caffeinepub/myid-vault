@@ -37,10 +37,18 @@ function getStorageKey(username: string): string {
 
 function getCurrentUsername(): string | null {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const session = JSON.parse(raw) as { username?: string };
-    return session.username ?? null;
+    const rawLocal = localStorage.getItem(SESSION_KEY);
+    if (rawLocal) {
+      const session = JSON.parse(rawLocal) as { username?: string };
+      if (session.username) return session.username;
+    }
+    // Fallback: check sessionStorage (used when auto-lock is enabled)
+    const rawSession = sessionStorage.getItem(SESSION_KEY);
+    if (rawSession) {
+      const session = JSON.parse(rawSession) as { username?: string };
+      if (session.username) return session.username;
+    }
+    return null;
   } catch {
     return null;
   }

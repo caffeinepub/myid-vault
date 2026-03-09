@@ -2,11 +2,11 @@ import { Toaster } from "@/components/ui/sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppBackground from "./components/AppBackground";
-import { usePasswordAuth } from "./hooks/usePasswordAuth";
-import type { UserSettings } from "./hooks/usePasswordAuth";
+import { type AuthUser, usePasswordAuth } from "./hooks/usePasswordAuth";
 import AddCardPage from "./pages/AddCardPage";
+import AdminPage from "./pages/AdminPage";
 import CardViewerPage from "./pages/CardViewerPage";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -45,31 +45,17 @@ function PageTransition({
 
 function AuthenticatedApp({
   userName,
-  username,
   onLogout,
-  hasSecurityQuestion,
-  updateSecurityQuestion,
-  updateSettings,
-  getSettings,
 }: {
   userName: string;
-  username: string;
-  onLogout: () => Promise<void>;
-  hasSecurityQuestion: boolean;
-  updateSecurityQuestion: (
-    currentPassword: string,
-    newQuestion: string,
-    newAnswer: string,
-  ) => Promise<void>;
-  updateSettings: (settings: Partial<UserSettings>) => void;
-  getSettings: () => UserSettings;
+  onLogout: () => void;
 }) {
   const [page, setPage] = useState<AppPage>({ type: "home" });
   const navigate = (p: AppPage) => setPage(p);
   const queryClient = useQueryClient();
 
-  const handleLogout = async () => {
-    await onLogout();
+  const handleLogout = () => {
+    onLogout();
     queryClient.clear();
     setPage({ type: "home" });
   };
@@ -91,7 +77,7 @@ function AuthenticatedApp({
         background: "transparent",
       }}
     >
-      <AppBackground username={username} />
+      <AppBackground username={userName} />
       <div style={{ position: "relative", zIndex: 1 }}>
         <Toaster position="top-center" richColors />
 
@@ -102,7 +88,6 @@ function AuthenticatedApp({
                 navigate={navigate}
                 userName={userName}
                 onLogout={handleLogout}
-                hasSecurityQuestion={hasSecurityQuestion}
               />
             </PageTransition>
           )}
@@ -123,13 +108,7 @@ function AuthenticatedApp({
           )}
           {page.type === "settings" && (
             <PageTransition pageKey={pageKey}>
-              <SettingsPage
-                navigate={navigate}
-                updateSecurityQuestion={updateSecurityQuestion}
-                updateSettings={updateSettings}
-                getSettings={getSettings}
-                hasSecurityQuestion={hasSecurityQuestion}
-              />
+              <SettingsPage navigate={navigate} />
             </PageTransition>
           )}
         </AnimatePresence>
@@ -142,16 +121,47 @@ export default function App() {
   const {
     user,
     isInitializing,
-    logout,
-    loginWithPassword,
     signUp,
-    resetPassword,
+    loginWithPassword,
+    logout,
     getSecurityQuestion,
-    hasSecurityQuestion,
-    updateSecurityQuestion,
-    updateSettings,
-    getSettings,
+    resetPassword,
   } = usePasswordAuth();
+
+  // Admin route detection via hash
+  const [isAdminRoute, setIsAdminRoute] = useState(
+    () => window.location.hash === "#admin",
+  );
+
+  useEffect(() => {
+    const handler = () => setIsAdminRoute(window.location.hash === "#admin");
+    window.addEventListener("hashchange", handler);
+    return () => window.removeEventListener("hashchange", handler);
+  }, []);
+
+  // Admin route rendering
+  if (isAdminRoute) {
+    return (
+      <div style={{ position: "relative", minHeight: "100dvh" }}>
+        <AppBackground username={undefined} />
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            paddingTop: "calc(env(safe-area-inset-top, 0px) + 0px)",
+          }}
+        >
+          <Toaster position="top-center" richColors />
+          <AdminPage
+            onExit={() => {
+              window.location.hash = "";
+              setIsAdminRoute(false);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   // Show loading while restoring session
   if (isInitializing) {
@@ -189,8 +199,12 @@ export default function App() {
             <LoginPage
               loginWithPassword={loginWithPassword}
               signUp={signUp}
-              resetPassword={resetPassword}
               getSecurityQuestion={getSecurityQuestion}
+              resetPassword={resetPassword}
+              onLoginSuccess={(authUser: AuthUser) => {
+                // user state is set inside the hook — App re-renders automatically
+                void authUser;
+              }}
             />
           </div>
         </div>
@@ -198,15 +212,5 @@ export default function App() {
     );
   }
 
-  return (
-    <AuthenticatedApp
-      userName={user.name}
-      username={user.username}
-      onLogout={logout}
-      hasSecurityQuestion={hasSecurityQuestion}
-      updateSecurityQuestion={updateSecurityQuestion}
-      updateSettings={updateSettings}
-      getSettings={getSettings}
-    />
-  );
+  return <AuthenticatedApp userName={user.name} onLogout={logout} />;
 }
