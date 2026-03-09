@@ -139,8 +139,7 @@ function SuccessAnimation({ userName }: { userName: string }) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35, duration: 0.4 }}
-        className="text-2xl font-bold relative z-10"
-        style={{ color: "oklch(0.92 0.01 250)" }}
+        className="text-3d-cyan text-2xl relative z-10"
       >
         Welcome, {userName}!
       </motion.p>
@@ -148,8 +147,8 @@ function SuccessAnimation({ userName }: { userName: string }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
-        className="text-sm mt-1 relative z-10"
-        style={{ color: "oklch(0.55 0.02 250)" }}
+        className="text-sm mt-1 relative z-10 font-exo tracking-widest uppercase"
+        style={{ color: "oklch(0.55 0.02 250)", letterSpacing: "0.15em" }}
       >
         Opening your vault…
       </motion.p>
@@ -426,11 +425,12 @@ export default function LoginPage({
                 />
               </div>
             </motion.div>
-            <h1 className="text-4xl font-display font-bold text-foreground tracking-tight neon-text">
-              MyID Vault
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1.5">
-              Store and access your IDs anywhere
+            <h1 className="text-3d-animated text-4xl">MyID Vault</h1>
+            <p
+              className="mt-2 text-sm font-exo tracking-widest uppercase"
+              style={{ color: "oklch(0.60 0.08 220)", letterSpacing: "0.18em" }}
+            >
+              Store &amp; access your IDs anywhere
             </p>
           </motion.div>
 

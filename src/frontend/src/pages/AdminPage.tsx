@@ -618,9 +618,7 @@ function AdminLoginScreen({
             />
           </div>
         </motion.div>
-        <h1 className="text-4xl font-display font-bold text-foreground tracking-tight neon-text">
-          MyID Vault
-        </h1>
+        <h1 className="text-3d-animated text-4xl">MyID Vault</h1>
         <p
           className="text-base mt-2 font-semibold"
           style={{ color: "oklch(0.65 0.28 300)" }}
@@ -894,9 +892,7 @@ function AdminDashboard({
                 style={{ color: "oklch(0.97 0.005 240)" }}
               />
             </div>
-            <h1 className="text-base font-display font-bold text-foreground truncate">
-              Admin Dashboard
-            </h1>
+            <h1 className="text-3d-sm text-sm truncate">Admin Dashboard</h1>
           </div>
 
           <button

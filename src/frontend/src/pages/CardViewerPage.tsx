@@ -303,13 +303,16 @@ function CollegeIDViewer({
 
           <div className="flex-1 min-w-0 pt-1">
             <p
-              className="font-display font-bold text-xl leading-tight"
-              style={{ color: "oklch(0.97 0.005 240)" }}
+              className="font-orbitron font-bold text-xl leading-tight"
+              style={{
+                color: "oklch(0.97 0.005 240)",
+                textShadow: "0 0 8px oklch(0.72 0.22 195 / 0.5)",
+              }}
             >
               {data.fullName}
             </p>
             <p
-              className="text-sm font-medium mt-1"
+              className="text-sm font-exo font-medium mt-1"
               style={{ color: "oklch(0.72 0.22 195)" }}
             >
               {data.course}
@@ -531,13 +534,16 @@ function OtherIDViewer({
 
           <div className="flex-1 min-w-0 pt-1">
             <p
-              className="font-display font-bold text-xl leading-tight"
-              style={{ color: "oklch(0.97 0.005 240)" }}
+              className="font-orbitron font-bold text-xl leading-tight"
+              style={{
+                color: "oklch(0.97 0.005 240)",
+                textShadow: "0 0 8px oklch(0.65 0.28 300 / 0.5)",
+              }}
             >
               {data.fullName}
             </p>
             <p
-              className="text-xs mt-1"
+              className="text-xs font-exo mt-1"
               style={{ color: "oklch(0.7 0.02 250)" }}
             >
               {data.idType}

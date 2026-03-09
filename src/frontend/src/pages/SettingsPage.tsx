@@ -304,9 +304,7 @@ export default function SettingsPage({ navigate }: SettingsPageProps) {
                 style={{ color: "oklch(0.97 0.005 240)" }}
               />
             </div>
-            <h1 className="text-base font-display font-bold text-foreground leading-none">
-              Settings
-            </h1>
+            <h1 className="text-3d-sm text-sm leading-none">Settings</h1>
           </motion.div>
         </div>
       </header>

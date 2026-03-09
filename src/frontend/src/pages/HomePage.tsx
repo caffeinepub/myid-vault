@@ -64,9 +64,7 @@ export default function HomePage({
                 style={{ color: "oklch(0.97 0.005 240)" }}
               />
             </div>
-            <h1 className="text-base font-display font-bold text-foreground leading-none">
-              MyID Vault
-            </h1>
+            <h1 className="text-3d-sm text-sm leading-none">MyID Vault</h1>
           </motion.div>
 
           {/* Right side: user info + actions */}
@@ -219,7 +217,7 @@ export default function HomePage({
                 </motion.div>
               </div>
             </motion.div>
-            <h2 className="text-2xl font-display font-bold text-foreground mb-2">
+            <h2 className="text-3d-violet text-2xl mb-2">
               Your vault is empty
             </h2>
             <p className="text-muted-foreground text-sm max-w-xs mb-8">
