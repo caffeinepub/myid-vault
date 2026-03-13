@@ -5,21 +5,25 @@ const SESSION_KEY = "myid-vault-session";
 const SETTINGS_KEY_PREFIX = "myid-vault-settings-";
 
 export interface AuthUser {
-  username: string;
+  email: string;
   name: string;
+  username: string; // = email, kept for useLocalIDStore backward compat
 }
 
 interface StoredAccount {
-  username: string;
+  email: string;
+  username: string; // = email
   passwordHash: string;
   name: string;
   securityQuestion: string;
   securityAnswerHash: string;
+  createdAt: number;
+  banned: boolean;
 }
 
 export interface BackgroundSetting {
-  type: "neon" | "preset" | "custom" | "video";
-  value?: string; // preset key, base64 data URL for custom, or video key for video
+  type: "neon" | "preset" | "custom" | "animated";
+  value?: string;
 }
 
 export interface UserSettings {
@@ -30,9 +34,9 @@ export interface UserSettings {
 
 type AccountsStore = Record<string, StoredAccount>;
 
-async function hashPassword(password: string): Promise<string> {
+async function hashPassword(input: string): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(password);
+  const data = encoder.encode(input);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -54,7 +58,6 @@ function saveAccounts(accounts: AccountsStore): void {
 
 function loadSession(): AuthUser | null {
   try {
-    // Try localStorage first, then sessionStorage (for auto-lock sessions)
     const rawLocal = localStorage.getItem(SESSION_KEY);
     if (rawLocal) return JSON.parse(rawLocal) as AuthUser;
     const rawSession = sessionStorage.getItem(SESSION_KEY);
@@ -113,70 +116,99 @@ export function usePasswordAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [appInitializing, setAppInitializing] = useState(true);
 
-  // Restore session on mount
   useEffect(() => {
     const session = loadSession();
     if (session) {
-      setUser(session);
+      // Normalize: ensure username = email
+      const normalized: AuthUser = {
+        email:
+          session.email ??
+          (session as unknown as { username?: string }).username ??
+          "",
+        name: session.name,
+        username:
+          session.email ??
+          (session as unknown as { username?: string }).username ??
+          "",
+      };
+      setUser(normalized);
     }
     setAppInitializing(false);
   }, []);
 
-  // Derived: does the current user have a security question?
   const hasSecurityQuestion = (() => {
     if (!user) return false;
     const accounts = loadAccounts();
-    const account = accounts[user.username];
+    const account = accounts[user.email];
     return !!(
       account?.securityQuestion && account.securityQuestion.trim() !== ""
     );
   })();
 
+  const users: Array<{
+    email: string;
+    name: string;
+    securityQuestion: string;
+    banned: boolean;
+    createdAt: number;
+  }> = Object.values(loadAccounts()).map((a) => ({
+    email: a.email,
+    name: a.name,
+    securityQuestion: a.securityQuestion ?? "",
+    banned: a.banned ?? false,
+    createdAt: a.createdAt ?? 0,
+  }));
+
   const signUp = useCallback(
     async (
       name: string,
-      username: string,
+      email: string,
       password: string,
       securityQuestion: string,
       securityAnswer: string,
     ): Promise<void> => {
       const accounts = loadAccounts();
-      const key = username.toLowerCase();
+      const key = email.toLowerCase().trim();
       if (accounts[key]) {
-        throw new Error("Username already taken. Please choose another.");
+        throw new Error("An account with this email already exists.");
       }
       const passwordHash = await hashPassword(password);
       const securityAnswerHash = await hashPassword(
-        securityAnswer.toLowerCase(),
+        securityAnswer.toLowerCase().trim(),
       );
       const account: StoredAccount = {
+        email: key,
         username: key,
         passwordHash,
-        name,
+        name: name.trim(),
         securityQuestion,
         securityAnswerHash,
+        createdAt: Date.now(),
+        banned: false,
       };
       accounts[key] = account;
       saveAccounts(accounts);
 
-      const newUser: AuthUser = { username: key, name };
+      const newUser: AuthUser = {
+        email: key,
+        name: name.trim(),
+        username: key,
+      };
       saveSession(newUser);
       setUser(newUser);
     },
     [],
   );
 
-  const loginWithPassword = useCallback(
-    async (username: string, password: string): Promise<void> => {
+  const login = useCallback(
+    async (email: string, password: string): Promise<void> => {
       const accounts = loadAccounts();
-      const key = username.toLowerCase();
+      const key = email.toLowerCase().trim();
       const account = accounts[key];
       if (!account) {
-        throw new Error("No account found for this username.");
+        throw new Error("No account found with this email address.");
       }
-      // Check if user is banned
-      const banned = adminGetBanned();
-      if (banned.includes(key)) {
+      if (account.banned) {
         throw new Error(
           "Your account has been suspended. Please contact the administrator.",
         );
@@ -185,8 +217,11 @@ export function usePasswordAuth() {
       if (passwordHash !== account.passwordHash) {
         throw new Error("Incorrect password. Please try again.");
       }
-      const sessionUser: AuthUser = { username: key, name: account.name };
-      // Check autoLock setting for this account
+      const sessionUser: AuthUser = {
+        email: key,
+        name: account.name,
+        username: key,
+      };
       const settings = loadSettings(key);
       saveSession(sessionUser, settings.autoLock);
       setUser(sessionUser);
@@ -194,52 +229,58 @@ export function usePasswordAuth() {
     [],
   );
 
-  const getSecurityQuestion = useCallback((username: string): string => {
+  const logout = useCallback((): void => {
+    clearSession();
+    setUser(null);
+  }, []);
+
+  const getSecurityQuestion = useCallback((email: string): string => {
     const accounts = loadAccounts();
-    const key = username.toLowerCase();
+    const key = email.toLowerCase().trim();
     const account = accounts[key];
     if (!account) {
-      throw new Error("No account found for this username.");
+      throw new Error("No account found with this email address.");
     }
-    // Handle legacy accounts that don't have a security question
     if (!account.securityQuestion) {
-      throw new Error(
-        "This account does not have a security question set up. Please contact support.",
-      );
+      throw new Error("This account does not have a security question set up.");
     }
     return account.securityQuestion;
   }, []);
 
   const resetPassword = useCallback(
     async (
-      username: string,
+      email: string,
       securityAnswer: string,
       newPassword: string,
     ): Promise<void> => {
       const accounts = loadAccounts();
-      const key = username.toLowerCase();
+      const key = email.toLowerCase().trim();
       const account = accounts[key];
       if (!account) {
-        throw new Error("No account found for this username.");
+        throw new Error("No account found with this email address.");
       }
-      const answerHash = await hashPassword(securityAnswer.toLowerCase());
+      const answerHash = await hashPassword(
+        securityAnswer.toLowerCase().trim(),
+      );
       if (answerHash !== account.securityAnswerHash) {
         throw new Error("Incorrect answer to security question.");
       }
       const newPasswordHash = await hashPassword(newPassword);
       accounts[key] = { ...account, passwordHash: newPasswordHash };
       saveAccounts(accounts);
+      // Auto-login after reset
+      const sessionUser: AuthUser = {
+        email: key,
+        name: account.name,
+        username: key,
+      };
+      saveSession(sessionUser);
+      setUser(sessionUser);
     },
     [],
   );
 
-  const logout = useCallback(async (): Promise<void> => {
-    clearSession();
-    setUser(null);
-  }, []);
-
-  // Update security question for logged-in user
-  const updateSecurityQuestion = useCallback(
+  const changeSecurityQuestion = useCallback(
     async (
       currentPassword: string,
       newQuestion: string,
@@ -247,26 +288,45 @@ export function usePasswordAuth() {
     ): Promise<void> => {
       if (!user) throw new Error("Not logged in.");
       const accounts = loadAccounts();
-      const account = accounts[user.username];
+      const account = accounts[user.email];
       if (!account) throw new Error("Account not found.");
       const passwordHash = await hashPassword(currentPassword);
       if (passwordHash !== account.passwordHash) {
         throw new Error("Incorrect current password.");
       }
       const newAnswerHash = await hashPassword(newAnswer.toLowerCase().trim());
-      accounts[user.username] = {
+      accounts[user.email] = {
         ...account,
         securityQuestion: newQuestion,
         securityAnswerHash: newAnswerHash,
       };
       saveAccounts(accounts);
-      // Force re-render by updating user state (same user, triggers re-derive)
       setUser((prev) => (prev ? { ...prev } : null));
     },
     [user],
   );
 
-  // Get settings for current user
+  const updateDisplayName = useCallback(
+    (newName: string): void => {
+      if (!user) return;
+      const accounts = loadAccounts();
+      const account = accounts[user.email];
+      if (!account) return;
+      accounts[user.email] = { ...account, name: newName.trim() };
+      saveAccounts(accounts);
+      const updatedUser: AuthUser = { ...user, name: newName.trim() };
+      // Update session
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (raw) {
+        saveSession(updatedUser);
+      } else {
+        saveSession(updatedUser, true);
+      }
+      setUser(updatedUser);
+    },
+    [user],
+  );
+
   const getSettings = useCallback((): UserSettings => {
     if (!user)
       return {
@@ -274,16 +334,15 @@ export function usePasswordAuth() {
         autoLock: false,
         background: { type: "preset", value: "aurora" },
       };
-    return loadSettings(user.username);
+    return loadSettings(user.email);
   }, [user]);
 
-  // Update settings for current user
   const updateSettings = useCallback(
     (settings: Partial<UserSettings>): void => {
       if (!user) return;
-      const current = loadSettings(user.username);
+      const current = loadSettings(user.email);
       const merged: UserSettings = { ...current, ...settings };
-      saveSettings(user.username, merged);
+      saveSettings(user.email, merged);
     },
     [user],
   );
@@ -291,15 +350,22 @@ export function usePasswordAuth() {
   return {
     user,
     isInitializing: appInitializing,
+    isLoggedIn: !!user,
     hasSecurityQuestion,
+    users,
     signUp,
-    loginWithPassword,
+    login,
     logout,
     getSecurityQuestion,
     resetPassword,
-    updateSecurityQuestion,
+    changeSecurityQuestion,
+    updateDisplayName,
     getSettings,
     updateSettings,
+    // Legacy alias
+    loginWithPassword: login,
+    updateSecurityQuestion: changeSecurityQuestion,
+    currentUser: user ? { name: user.name, email: user.email } : null,
   };
 }
 
@@ -308,37 +374,42 @@ export function usePasswordAuth() {
 // ─────────────────────────────────────────────────────────
 
 const ADMIN_SESSION_KEY = "myid-vault-admin-session";
-const BANNED_KEY = "myid-vault-banned";
-// Suppress unused-variable warnings — these constants are used by the functions below
 void ADMIN_SESSION_KEY;
-void BANNED_KEY;
 
 export function adminLoadAccounts(): Record<
   string,
-  { username: string; name: string; securityQuestion: string }
+  {
+    username: string;
+    email: string;
+    name: string;
+    securityQuestion: string;
+    banned: boolean;
+    createdAt: number;
+  }
 > {
   try {
     const raw = localStorage.getItem(ACCOUNTS_KEY);
     if (!raw) return {};
-    const all = JSON.parse(raw) as Record<
+    const all = JSON.parse(raw) as Record<string, StoredAccount>;
+    const result: Record<
       string,
       {
         username: string;
-        passwordHash: string;
+        email: string;
         name: string;
         securityQuestion: string;
-        securityAnswerHash: string;
+        banned: boolean;
+        createdAt: number;
       }
-    >;
-    const result: Record<
-      string,
-      { username: string; name: string; securityQuestion: string }
     > = {};
     for (const [k, v] of Object.entries(all)) {
       result[k] = {
-        username: v.username,
+        username: v.username ?? v.email ?? k,
+        email: v.email ?? v.username ?? k,
         name: v.name,
         securityQuestion: v.securityQuestion || "",
+        banned: v.banned ?? false,
+        createdAt: v.createdAt ?? 0,
       };
     }
     return result;
@@ -347,9 +418,9 @@ export function adminLoadAccounts(): Record<
   }
 }
 
-export function adminGetUserIDCount(username: string): number {
+export function adminGetUserIDCount(email: string): number {
   try {
-    const raw = localStorage.getItem(`myid-vault-ids-${username}`);
+    const raw = localStorage.getItem(`myid-vault-ids-${email}`);
     if (!raw) return 0;
     const cards = JSON.parse(raw) as unknown[];
     return Array.isArray(cards) ? cards.length : 0;
@@ -359,10 +430,10 @@ export function adminGetUserIDCount(username: string): number {
 }
 
 export function adminGetUserIDs(
-  username: string,
+  email: string,
 ): import("./useLocalIDStore").LocalIDCard[] {
   try {
-    const raw = localStorage.getItem(`myid-vault-ids-${username}`);
+    const raw = localStorage.getItem(`myid-vault-ids-${email}`);
     if (!raw) return [];
     return JSON.parse(raw) as import("./useLocalIDStore").LocalIDCard[];
   } catch {
@@ -370,7 +441,7 @@ export function adminGetUserIDs(
   }
 }
 
-export function adminDeleteAccount(username: string): void {
+export function adminDeleteAccount(email: string): void {
   const accounts = (() => {
     try {
       const r = localStorage.getItem(ACCOUNTS_KEY);
@@ -379,14 +450,14 @@ export function adminDeleteAccount(username: string): void {
       return {};
     }
   })();
-  delete accounts[username];
+  delete accounts[email];
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-  localStorage.removeItem(`myid-vault-ids-${username}`);
-  localStorage.removeItem(`myid-vault-settings-${username}`);
+  localStorage.removeItem(`myid-vault-ids-${email}`);
+  localStorage.removeItem(`myid-vault-settings-${email}`);
 }
 
 export function adminResetPassword(
-  username: string,
+  email: string,
   newPassword: string,
 ): Promise<void> {
   return (async () => {
@@ -400,13 +471,13 @@ export function adminResetPassword(
         return {} as Record<string, StoredAccount>;
       }
     })();
-    if (!accounts[username]) throw new Error("User not found");
+    if (!accounts[email]) throw new Error("User not found");
     const enc = new TextEncoder();
     const buf = await crypto.subtle.digest("SHA-256", enc.encode(newPassword));
     const hash = Array.from(new Uint8Array(buf))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
-    accounts[username] = { ...accounts[username], passwordHash: hash };
+    accounts[email] = { ...accounts[email], passwordHash: hash };
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
   })();
 }
@@ -420,16 +491,16 @@ export function adminGetBanned(): string[] {
   }
 }
 
-export function adminToggleBan(username: string): boolean {
+export function adminToggleBan(email: string): boolean {
   const banned = adminGetBanned();
-  const idx = banned.indexOf(username);
+  const idx = banned.indexOf(email);
   if (idx >= 0) {
     banned.splice(idx, 1);
   } else {
-    banned.push(username);
+    banned.push(email);
   }
   localStorage.setItem("myid-vault-banned", JSON.stringify(banned));
-  return banned.includes(username);
+  return banned.includes(email);
 }
 
 export function adminSaveSession(): void {

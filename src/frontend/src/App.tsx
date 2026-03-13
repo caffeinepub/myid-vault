@@ -1,10 +1,10 @@
 import { Toaster } from "@/components/ui/sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppBackground from "./components/AppBackground";
-import { type AuthUser, usePasswordAuth } from "./hooks/usePasswordAuth";
+import { useInternetIdentity } from "./hooks/useInternetIdentity";
+import { isAccountBanned, registerAccount } from "./lib/storage";
 import AddCardPage from "./pages/AddCardPage";
 import AdminPage from "./pages/AdminPage";
 import CardViewerPage from "./pages/CardViewerPage";
@@ -19,23 +19,82 @@ export type AppPage =
   | { type: "edit"; cardId: string }
   | { type: "settings" };
 
-// Page transition wrapper
+function LoginSplash({
+  name,
+  onDone,
+}: {
+  name: string;
+  onDone: () => void;
+}) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 1800);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{ background: "rgba(3,3,12,0.97)" }}
+    >
+      <motion.div
+        initial={{ scale: 0, rotate: -10 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{
+          type: "spring",
+          stiffness: 260,
+          damping: 18,
+          delay: 0.1,
+        }}
+        style={{ fontSize: "4rem", marginBottom: "1.5rem" }}
+      >
+        ✅
+      </motion.div>
+      <motion.h2
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="neon-text-3d"
+        style={{ fontSize: "1.6rem" }}
+      >
+        Welcome, {name}!
+      </motion.h2>
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6 }}
+        style={{
+          color: "rgba(0,255,255,0.5)",
+          marginTop: "0.5rem",
+          fontFamily: "'Exo 2', sans-serif",
+        }}
+      >
+        Loading your vault…
+      </motion.p>
+    </motion.div>
+  );
+}
+
 function PageTransition({
   children,
   pageKey,
-}: { children: React.ReactNode; pageKey: string }) {
+}: {
+  children: React.ReactNode;
+  pageKey: string;
+}) {
   return (
     <motion.div
       key={pageKey}
-      initial={{ opacity: 0, x: 40, y: 30, scale: 0.93 }}
-      animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-      exit={{ opacity: 0, x: -40, y: -30, scale: 0.93 }}
+      initial={{ opacity: 0, y: 22, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -22, scale: 0.97 }}
       transition={{
         type: "spring",
-        stiffness: 260,
-        damping: 26,
-        mass: 0.9,
-        opacity: { duration: 0.28, ease: [0.22, 1, 0.36, 1] },
+        stiffness: 280,
+        damping: 28,
+        opacity: { duration: 0.22 },
       }}
     >
       {children}
@@ -44,23 +103,22 @@ function PageTransition({
 }
 
 function AuthenticatedApp({
-  userName,
+  principalText,
   onLogout,
 }: {
-  userName: string;
+  principalText: string;
   onLogout: () => void;
 }) {
   const [page, setPage] = useState<AppPage>({ type: "home" });
-  const navigate = (p: AppPage) => setPage(p);
   const queryClient = useQueryClient();
 
+  const navigate = (p: AppPage) => setPage(p);
+
   const handleLogout = () => {
-    onLogout();
     queryClient.clear();
-    setPage({ type: "home" });
+    onLogout();
   };
 
-  // Derive page key for transitions
   const pageKey =
     page.type === "view"
       ? `view-${page.cardId}`
@@ -72,21 +130,17 @@ function AuthenticatedApp({
     <div
       className="min-h-screen"
       style={{
-        paddingTop: "calc(env(safe-area-inset-top, 0px) + 5rem)",
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)",
         position: "relative",
-        background: "transparent",
       }}
     >
-      <AppBackground username={userName} />
       <div style={{ position: "relative", zIndex: 1 }}>
-        <Toaster position="top-center" richColors />
-
         <AnimatePresence mode="wait">
           {page.type === "home" && (
             <PageTransition pageKey={pageKey}>
               <HomePage
                 navigate={navigate}
-                userName={userName}
+                principalText={principalText}
                 onLogout={handleLogout}
               />
             </PageTransition>
@@ -108,7 +162,7 @@ function AuthenticatedApp({
           )}
           {page.type === "settings" && (
             <PageTransition pageKey={pageKey}>
-              <SettingsPage navigate={navigate} />
+              <SettingsPage navigate={navigate} principalText={principalText} />
             </PageTransition>
           )}
         </AnimatePresence>
@@ -118,20 +172,17 @@ function AuthenticatedApp({
 }
 
 export default function App() {
-  const {
-    user,
-    isInitializing,
-    signUp,
-    loginWithPassword,
-    logout,
-    getSecurityQuestion,
-    resetPassword,
-  } = usePasswordAuth();
-
-  // Admin route detection via hash
+  const { identity, clear, isInitializing } = useInternetIdentity();
   const [isAdminRoute, setIsAdminRoute] = useState(
     () => window.location.hash === "#admin",
   );
+  const [showSplash, setShowSplash] = useState(false);
+  const [splashName, setSplashName] = useState("User");
+  const prevLoggedIn = useRef(false);
+
+  const isLoggedIn = !!identity && !identity.getPrincipal().isAnonymous();
+  const principalText = identity?.getPrincipal().toText() ?? "";
+  const isBanned = isLoggedIn && isAccountBanned(principalText);
 
   useEffect(() => {
     const handler = () => setIsAdminRoute(window.location.hash === "#admin");
@@ -139,18 +190,20 @@ export default function App() {
     return () => window.removeEventListener("hashchange", handler);
   }, []);
 
-  // Admin route rendering
+  useEffect(() => {
+    if (isLoggedIn && !prevLoggedIn.current && principalText) {
+      const account = registerAccount(principalText, "User");
+      setSplashName(account.name);
+      setShowSplash(true);
+    }
+    prevLoggedIn.current = isLoggedIn;
+  }, [isLoggedIn, principalText]);
+
   if (isAdminRoute) {
     return (
       <div style={{ position: "relative", minHeight: "100dvh" }}>
-        <AppBackground username={undefined} />
-        <div
-          style={{
-            position: "relative",
-            zIndex: 1,
-            paddingTop: "calc(env(safe-area-inset-top, 0px) + 0px)",
-          }}
-        >
+        <AppBackground />
+        <div style={{ position: "relative", zIndex: 1 }}>
           <Toaster position="top-center" richColors />
           <AdminPage
             onExit={() => {
@@ -163,54 +216,102 @@ export default function App() {
     );
   }
 
-  // Show loading while restoring session
   if (isInitializing) {
     return (
+      <div style={{ position: "relative", minHeight: "100dvh" }}>
+        <AppBackground />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100dvh",
+          }}
+        >
+          <span
+            className="neon-text-3d"
+            style={{ fontSize: "1.2rem", letterSpacing: "0.2em" }}
+          >
+            LOADING…
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (isBanned) {
+    return (
       <div
-        className="min-h-screen flex items-center justify-center"
         style={{
-          paddingTop: "calc(env(safe-area-inset-top, 0px) + 5rem)",
-          position: "relative",
-          background: "transparent",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100dvh",
+          background: "#030308",
         }}
       >
-        <AppBackground username={undefined} />
-        <div
-          className="flex flex-col items-center gap-3"
-          style={{ position: "relative", zIndex: 1 }}
-        >
-          <Loader2 className="w-8 h-8 animate-spin text-primary/60" />
-          <p className="text-sm text-muted-foreground">Loading your vault...</p>
+        <div style={{ textAlign: "center", padding: "2rem" }}>
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🚫</div>
+          <h2
+            style={{
+              fontFamily: "Orbitron, sans-serif",
+              color: "#ff4444",
+              marginBottom: "0.5rem",
+            }}
+          >
+            Account Suspended
+          </h2>
+          <p style={{ color: "rgba(255,255,255,0.5)" }}>
+            Contact the administrator for assistance.
+          </p>
+          <button
+            type="button"
+            onClick={() => clear()}
+            style={{
+              marginTop: "1.5rem",
+              padding: "0.5rem 1.5rem",
+              border: "1px solid #ff4444",
+              color: "#ff4444",
+              background: "transparent",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontFamily: "'Exo 2', sans-serif",
+            }}
+          >
+            Logout
+          </button>
         </div>
       </div>
     );
   }
 
-  // Not logged in — show login page
-  if (!user) {
+  if (!isLoggedIn) {
     return (
       <div style={{ position: "relative", minHeight: "100dvh" }}>
-        <AppBackground username={undefined} />
+        <AppBackground />
         <div style={{ position: "relative", zIndex: 1 }}>
           <Toaster position="top-center" richColors />
-          <div
-            style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 5rem)" }}
-          >
-            <LoginPage
-              loginWithPassword={loginWithPassword}
-              signUp={signUp}
-              getSecurityQuestion={getSecurityQuestion}
-              resetPassword={resetPassword}
-              onLoginSuccess={(authUser: AuthUser) => {
-                // user state is set inside the hook — App re-renders automatically
-                void authUser;
-              }}
-            />
-          </div>
+          <LoginPage />
         </div>
       </div>
     );
   }
 
-  return <AuthenticatedApp userName={user.name} onLogout={logout} />;
+  return (
+    <div style={{ position: "relative", minHeight: "100dvh" }}>
+      <AppBackground />
+      <Toaster position="top-center" richColors />
+      <AnimatePresence>
+        {showSplash && (
+          <LoginSplash name={splashName} onDone={() => setShowSplash(false)} />
+        )}
+      </AnimatePresence>
+      {!showSplash && (
+        <AuthenticatedApp
+          principalText={principalText}
+          onLogout={() => clear()}
+        />
+      )}
+    </div>
+  );
 }

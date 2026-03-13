@@ -1,662 +1,481 @@
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
   ArrowLeft,
+  BadgeCheck,
   BookOpen,
-  Building2,
-  Calendar,
-  CalendarCheck,
-  ClipboardList,
+  Car,
   CreditCard,
   Edit2,
-  GitBranch,
+  Fingerprint,
   GraduationCap,
-  Hash,
   Loader2,
+  School,
   Trash2,
-  User,
+  X,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 import { toast } from "sonner";
 import type { AppPage } from "../App";
+import type { IDCard } from "../backend";
 import { useDeleteCard, useGetCard } from "../hooks/useQueries";
 
-interface CardViewerPageProps {
-  cardId: string;
-  navigate: (page: AppPage) => void;
+function getCardDetails(card: IDCard) {
+  if (card.cardType.__kind__ === "collegeStudent") {
+    const c = card.cardType.collegeStudent;
+    const isSchool = c.collegeName.toLowerCase().includes("school");
+    return {
+      title: isSchool ? "School ID" : "College ID",
+      icon: isSchool ? <School size={22} /> : <GraduationCap size={22} />,
+      photoUrl: c.photo.getDirectURL(),
+      fields: [
+        { label: "Full Name", value: c.fullName },
+        {
+          label: isSchool ? "School Name" : "College Name",
+          value: c.collegeName,
+        },
+        {
+          label: isSchool ? "Roll No." : "Enrollment No.",
+          value: c.enrollmentNo,
+        },
+        {
+          label: isSchool ? "Class" : "Course",
+          value: c.course,
+        },
+        {
+          label: isSchool ? "Section" : "Branch / Dept.",
+          value: c.branch,
+        },
+        {
+          label: isSchool ? "Roll No." : "Academic Year",
+          value: c.academicYear,
+        },
+        { label: "Date of Birth", value: c.dateOfBirth },
+        { label: "Valid Until", value: c.validUntil },
+      ].filter((f) => f.value),
+    };
+  }
+
+  const o = card.cardType.other;
+  const icons: Record<string, React.ReactNode> = {
+    Aadhaar: <Fingerprint size={22} />,
+    PAN: <CreditCard size={22} />,
+    Passport: <BookOpen size={22} />,
+    "Driving Licence": <Car size={22} />,
+    "Voter ID": <BadgeCheck size={22} />,
+  };
+
+  const fieldLabels: Record<
+    string,
+    { idNumber: string; issueDate?: string; issuedBy?: string }
+  > = {
+    Aadhaar: {
+      idNumber: "Aadhaar No.",
+      issueDate: "Gender",
+      issuedBy: "Address",
+    },
+    PAN: { idNumber: "PAN No.", issuedBy: "Father's Name" },
+    Passport: {
+      idNumber: "Passport No.",
+      issueDate: "Nationality",
+      issuedBy: "Place of Issue",
+    },
+    "Driving Licence": {
+      idNumber: "Licence No.",
+      issueDate: "Vehicle Class",
+      issuedBy: "Address",
+    },
+    "Voter ID": {
+      idNumber: "Voter ID No.",
+      issueDate: "Part No.",
+      issuedBy: "Address",
+    },
+  };
+  const labels = fieldLabels[o.idType] || { idNumber: "ID Number" };
+
+  return {
+    title: o.idType,
+    icon: icons[o.idType] || <CreditCard size={22} />,
+    photoUrl: o.photo.getDirectURL(),
+    fields: [
+      { label: "Full Name", value: o.fullName },
+      { label: labels.idNumber, value: o.idNumber },
+      { label: "Date of Birth", value: o.dateOfBirth },
+      labels.issuedBy && o.issuedBy
+        ? { label: labels.issuedBy, value: o.issuedBy }
+        : null,
+      labels.issueDate && o.issueDate
+        ? { label: labels.issueDate, value: o.issueDate }
+        : null,
+      o.expiryDate ? { label: "Expiry Date", value: o.expiryDate } : null,
+    ].filter(Boolean) as { label: string; value: string }[],
+  };
 }
 
 export default function CardViewerPage({
   cardId,
   navigate,
-}: CardViewerPageProps) {
+}: {
+  cardId: string;
+  navigate: (p: AppPage) => void;
+}) {
   const { data: card, isLoading } = useGetCard(cardId);
   const deleteCard = useDeleteCard();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleDelete = async () => {
     try {
       await deleteCard.mutateAsync(cardId);
-      toast.success("ID card deleted");
+      toast.success("ID deleted");
       navigate({ type: "home" });
     } catch {
-      toast.error("Failed to delete card");
+      toast.error("Failed to delete");
     }
+    setShowDeleteConfirm(false);
   };
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border rgb-glow-sm"
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          minHeight: "100dvh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
       >
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+        <Loader2
+          size={32}
+          style={{ color: "#00ffff", animation: "spin 1s linear infinite" }}
+        />
+      </div>
+    );
+  }
+
+  if (!card) {
+    return (
+      <div
+        style={{
+          minHeight: "100dvh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "1rem",
+        }}
+      >
+        <p
+          style={{
+            fontFamily: "'Orbitron', sans-serif",
+            color: "rgba(255,100,100,0.7)",
+          }}
+        >
+          Card not found.
+        </p>
+        <button
+          type="button"
+          data-ocid="viewer.close_button"
+          onClick={() => navigate({ type: "home" })}
+          className="neon-btn"
+          style={{
+            background: "transparent",
+            border: "1px solid rgba(0,255,255,0.3)",
+            borderRadius: "8px",
+            padding: "0.5rem 1.5rem",
+            color: "#00ffff",
+            cursor: "pointer",
+            fontFamily: "'Orbitron', sans-serif",
+            fontSize: "0.82rem",
+          }}
+        >
+          Go Back
+        </button>
+      </div>
+    );
+  }
+
+  const details = getCardDetails(card);
+  const hasPhoto =
+    details.photoUrl &&
+    !details.photoUrl.includes("iVBORw0KGgo") &&
+    !details.photoUrl.includes("data:image/png;base64,iVBOR");
+
+  return (
+    <div
+      style={{
+        minHeight: "100dvh",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 2rem)",
+      }}
+    >
+      {/* Header */}
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 1.25rem 1rem",
+        }}
+      >
+        <button
+          type="button"
+          data-ocid="viewer.close_button"
+          onClick={() => navigate({ type: "home" })}
+          className="neon-btn"
+          style={{
+            background: "transparent",
+            border: "1px solid rgba(0,255,255,0.2)",
+            borderRadius: "8px",
+            padding: "0.45rem",
+            color: "rgba(0,255,255,0.7)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            color: "rgba(0,255,255,0.8)",
+            fontFamily: "'Orbitron', sans-serif",
+            fontSize: "0.9rem",
+          }}
+        >
+          <span style={{ color: "rgba(0,255,255,0.6)" }}>{details.icon}</span>
+          {details.title}
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
           <button
             type="button"
-            data-ocid="card_viewer.back.button"
-            onClick={() => navigate({ type: "home" })}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors btn-auto-glow-delay-2 rounded-lg px-2 py-1"
+            data-ocid="viewer.edit_button"
+            onClick={() => navigate({ type: "edit", cardId })}
+            className="neon-btn"
+            style={{
+              background: "transparent",
+              border: "1px solid rgba(0,255,255,0.25)",
+              borderRadius: "8px",
+              padding: "0.45rem",
+              color: "rgba(0,255,255,0.7)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+            }}
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back
+            <Edit2 size={18} />
           </button>
-          <h1 className="text-sm font-semibold text-foreground">ID Details</h1>
-          <div className="flex items-center gap-2">
-            {card && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  data-ocid="card_viewer.edit.button"
-                  className="gap-1.5 text-xs btn-auto-glow"
-                  onClick={() => navigate({ type: "edit", cardId })}
+          <button
+            type="button"
+            data-ocid="viewer.delete_button"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="neon-btn"
+            style={{
+              background: "transparent",
+              border: "1px solid rgba(255,60,60,0.3)",
+              borderRadius: "8px",
+              padding: "0.45rem",
+              color: "rgba(255,80,80,0.7)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
+      </header>
+
+      {/* Card body */}
+      <div style={{ padding: "0 1.25rem" }}>
+        <div
+          className="glass-card"
+          style={{
+            padding: "1.5rem",
+            animation: "slideUpFade 0.3s ease-out both",
+          }}
+        >
+          {/* Photo */}
+          {hasPhoto && (
+            <div style={{ marginBottom: "1.25rem", textAlign: "center" }}>
+              <img
+                src={details.photoUrl}
+                alt="Document"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "200px",
+                  objectFit: "contain",
+                  borderRadius: "8px",
+                  border: "1px solid rgba(0,255,255,0.2)",
+                }}
+              />
+            </div>
+          )}
+
+          {/* Fields */}
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}
+          >
+            {details.fields.map((field) => (
+              <div
+                key={field.label}
+                style={{
+                  borderBottom: "1px solid rgba(0,255,255,0.08)",
+                  paddingBottom: "0.7rem",
+                }}
+              >
+                <p
+                  style={{
+                    fontFamily: "'Orbitron', sans-serif",
+                    fontSize: "0.65rem",
+                    color: "rgba(0,255,255,0.5)",
+                    letterSpacing: "0.1em",
+                    marginBottom: "0.2rem",
+                  }}
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  Edit
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      data-ocid="card_viewer.delete.button"
-                      className="gap-1.5 text-xs border-destructive/40 text-destructive hover:bg-destructive/10 btn-auto-glow-delay-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete this ID card?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. The ID card will be
-                        permanently removed from your vault.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDelete}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        {deleteCard.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          "Delete"
-                        )}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </>
-            )}
-          </div>
-        </div>
-      </motion.header>
-
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-        {isLoading && <CardViewerSkeleton />}
-
-        {card && card.cardType.__kind__ === "collegeStudent" && (
-          <CollegeIDViewer data={card.cardType.collegeStudent} />
-        )}
-
-        {card && card.cardType.__kind__ === "other" && (
-          <OtherIDViewer data={card.cardType.other} />
-        )}
-      </main>
-    </div>
-  );
-}
-
-function CollegeIDViewer({
-  data,
-}: {
-  data: {
-    fullName: string;
-    enrollmentNo: string;
-    dateOfBirth: string;
-    collegeName: string;
-    course: string;
-    branch: string;
-    academicYear: string;
-    validUntil: string;
-    photo: string;
-  };
-}) {
-  const photoUrl = data.photo;
-
-  const detailFields = [
-    {
-      icon: <Hash className="w-3.5 h-3.5" />,
-      label: "Enrollment No.",
-      value: data.enrollmentNo,
-    },
-    {
-      icon: <Calendar className="w-3.5 h-3.5" />,
-      label: "Date of Birth",
-      value: data.dateOfBirth,
-    },
-    {
-      icon: <BookOpen className="w-3.5 h-3.5" />,
-      label: "Course",
-      value: data.course,
-    },
-    {
-      icon: <GitBranch className="w-3.5 h-3.5" />,
-      label: "Branch",
-      value: data.branch,
-    },
-    {
-      icon: <ClipboardList className="w-3.5 h-3.5" />,
-      label: "Academic Year",
-      value: data.academicYear,
-    },
-    {
-      icon: <CalendarCheck className="w-3.5 h-3.5" />,
-      label: "Valid Until",
-      value: data.validUntil,
-    },
-  ];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, rotateY: 15, rotateX: 5, scale: 0.9, y: 30 }}
-      animate={{ opacity: 1, rotateY: 0, rotateX: 0, scale: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 240, damping: 22, mass: 0.85 }}
-      style={{ perspective: "1000px" }}
-    >
-      {/* Physical-style ID card */}
-      <motion.div
-        whileHover={{ scale: 1.01, y: -3 }}
-        transition={{ type: "spring", stiffness: 240, damping: 22, mass: 0.85 }}
-        className="rounded-3xl overflow-hidden card-shine noise-overlay relative mx-auto"
-        style={{
-          background:
-            "linear-gradient(145deg, oklch(0.10 0.04 255) 0%, oklch(0.15 0.06 240) 45%, oklch(0.11 0.05 258) 100%)",
-          boxShadow:
-            "0 8px 20px -4px oklch(0.08 0.015 260 / 0.8), 0 24px 60px -12px oklch(0.08 0.015 260 / 0.6), 0 0 0 1px oklch(0.72 0.22 195 / 0.2), 0 0 32px 4px oklch(0.72 0.22 195 / 0.12), inset 0 1px 0 oklch(1 0 0 / 0.08)",
-          maxWidth: "420px",
-        }}
-      >
-        {/* Neon cyan top stripe — continuous shimmer + RGB glow */}
-        <div
-          className="h-1.5 relative overflow-hidden rgb-glow"
-          style={{
-            background:
-              "linear-gradient(90deg, oklch(0.55 0.22 195), oklch(0.72 0.22 195), oklch(0.65 0.28 300), oklch(0.72 0.22 195))",
-            backgroundSize: "200% 100%",
-          }}
-        >
-          <motion.div
-            className="absolute inset-0"
-            animate={{ x: ["-100%", "200%"] }}
-            transition={{
-              duration: 2.5,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-              repeatDelay: 1.5,
-            }}
-            style={{
-              background:
-                "linear-gradient(90deg, transparent 0%, oklch(1 0 0 / 0.6) 50%, transparent 100%)",
-              width: "60%",
-            }}
-          />
-        </div>
-
-        {/* College header */}
-        <motion.div
-          initial={{ opacity: 0, x: -12 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.15, duration: 0.4 }}
-          className="px-6 pt-5 pb-4 flex items-center gap-3 border-b"
-          style={{ borderColor: "oklch(1 0 0 / 0.1)" }}
-        >
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "oklch(0.72 0.22 195 / 0.15)" }}
-          >
-            <GraduationCap
-              className="w-5 h-5"
-              style={{ color: "oklch(0.72 0.22 195)" }}
-            />
-          </div>
-          <div className="min-w-0">
-            <p
-              className="font-bold text-sm leading-tight truncate"
-              style={{ color: "oklch(0.97 0.005 240)" }}
-            >
-              {data.collegeName}
-            </p>
-            <p
-              className="text-xs mt-0.5"
-              style={{ color: "oklch(0.72 0.22 195)" }}
-            >
-              Student Identity Card
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Photo + Name section */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.22, duration: 0.4 }}
-          className="px-6 py-5 flex items-start gap-5"
-        >
-          <div
-            className="w-24 h-28 rounded-xl overflow-hidden flex-shrink-0 border-2"
-            style={{ borderColor: "oklch(0.72 0.22 195 / 0.5)" }}
-          >
-            {photoUrl ? (
-              <img
-                src={photoUrl}
-                alt={data.fullName}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div
-                className="w-full h-full flex items-center justify-center"
-                style={{ background: "oklch(1 0 0 / 0.08)" }}
-              >
-                <User
-                  className="w-10 h-10"
-                  style={{ color: "oklch(1 0 0 / 0.3)" }}
-                />
+                  {field.label.toUpperCase()}
+                </p>
+                <p
+                  style={{
+                    fontFamily: "'Exo 2', sans-serif",
+                    fontSize: "0.92rem",
+                    color: "rgba(255,255,255,0.88)",
+                    fontWeight: 500,
+                  }}
+                >
+                  {field.value}
+                </p>
               </div>
-            )}
+            ))}
           </div>
-
-          <div className="flex-1 min-w-0 pt-1">
-            <p
-              className="font-orbitron font-bold text-xl leading-tight"
-              style={{
-                color: "oklch(0.97 0.005 240)",
-                textShadow: "0 0 8px oklch(0.72 0.22 195 / 0.5)",
-              }}
-            >
-              {data.fullName}
-            </p>
-            <p
-              className="text-sm font-exo font-medium mt-1"
-              style={{ color: "oklch(0.72 0.22 195)" }}
-            >
-              {data.course}
-            </p>
-            <p
-              className="text-xs mt-0.5"
-              style={{ color: "oklch(0.7 0.02 250)" }}
-            >
-              {data.branch}
-            </p>
-            <div
-              className="mt-3 px-2.5 py-1 rounded-lg inline-block"
-              style={{ background: "oklch(0.72 0.22 195 / 0.12)" }}
-            >
-              <p
-                className="text-xs font-mono font-semibold"
-                style={{ color: "oklch(0.72 0.22 195)" }}
-              >
-                {data.enrollmentNo}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Details grid — staggered */}
-        <div
-          className="px-6 pb-6 grid grid-cols-2 gap-3"
-          style={{ borderTop: "1px solid oklch(1 0 0 / 0.08)" }}
-        >
-          {detailFields.map((field, i) => (
-            <motion.div
-              key={field.label}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.04 + i * 0.04, duration: 0.25 }}
-            >
-              <DetailField
-                icon={field.icon}
-                label={field.label}
-                value={field.value}
-                dark
-              />
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Bottom decorative strip */}
-        <div className="h-1" style={{ background: "oklch(1 0 0 / 0.06)" }} />
-      </motion.div>
-
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        className="text-center text-xs text-muted-foreground mt-4"
-      >
-        Show this card as your official college student ID
-      </motion.p>
-    </motion.div>
-  );
-}
-
-function OtherIDViewer({
-  data,
-}: {
-  data: {
-    fullName: string;
-    idType: string;
-    idNumber: string;
-    dateOfBirth: string;
-    issueDate: string;
-    expiryDate: string;
-    issuedBy: string;
-    photo: string;
-  };
-}) {
-  const photoUrl = data.photo;
-
-  const detailFields = [
-    {
-      icon: <Hash className="w-3.5 h-3.5" />,
-      label: "ID Number",
-      value: data.idNumber,
-      span: false,
-    },
-    {
-      icon: <Calendar className="w-3.5 h-3.5" />,
-      label: "Date of Birth",
-      value: data.dateOfBirth,
-      span: false,
-    },
-    {
-      icon: <Building2 className="w-3.5 h-3.5" />,
-      label: "Issued By",
-      value: data.issuedBy,
-      span: false,
-    },
-    {
-      icon: <CalendarCheck className="w-3.5 h-3.5" />,
-      label: "Issue Date",
-      value: data.issueDate,
-      span: false,
-    },
-    {
-      icon: <CalendarCheck className="w-3.5 h-3.5" />,
-      label: "Expiry Date",
-      value: data.expiryDate,
-      span: true,
-    },
-  ];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, rotateY: 15, rotateX: 5, scale: 0.9, y: 30 }}
-      animate={{ opacity: 1, rotateY: 0, rotateX: 0, scale: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 240, damping: 22, mass: 0.85 }}
-      style={{ perspective: "1000px" }}
-    >
-      <motion.div
-        whileHover={{ scale: 1.01, y: -3 }}
-        transition={{ type: "spring", stiffness: 240, damping: 22, mass: 0.85 }}
-        className="rounded-3xl overflow-hidden card-shine noise-overlay relative mx-auto"
-        style={{
-          background:
-            "linear-gradient(145deg, oklch(0.10 0.04 285) 0%, oklch(0.14 0.05 300) 45%, oklch(0.10 0.04 280) 100%)",
-          boxShadow:
-            "0 8px 20px -4px oklch(0.08 0.015 260 / 0.8), 0 24px 60px -12px oklch(0.08 0.015 260 / 0.6), 0 0 0 1px oklch(0.65 0.28 300 / 0.2), 0 0 32px 4px oklch(0.65 0.28 300 / 0.12), inset 0 1px 0 oklch(1 0 0 / 0.08)",
-          maxWidth: "420px",
-        }}
-      >
-        {/* Neon violet top stripe — continuous shimmer + RGB glow */}
-        <div
-          className="h-1.5 relative overflow-hidden rgb-glow"
-          style={{
-            background:
-              "linear-gradient(90deg, oklch(0.5 0.25 300), oklch(0.65 0.28 300), oklch(0.72 0.22 195), oklch(0.65 0.28 300))",
-            backgroundSize: "200% 100%",
-          }}
-        >
-          <motion.div
-            className="absolute inset-0"
-            animate={{ x: ["-100%", "200%"] }}
-            transition={{
-              duration: 2.5,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-              repeatDelay: 1.5,
-            }}
-            style={{
-              background:
-                "linear-gradient(90deg, transparent 0%, oklch(1 0 0 / 0.6) 50%, transparent 100%)",
-              width: "60%",
-            }}
-          />
-        </div>
-
-        {/* ID type header */}
-        <motion.div
-          initial={{ opacity: 0, x: -12 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.15, duration: 0.4 }}
-          className="px-6 pt-5 pb-4 flex items-center gap-3 border-b"
-          style={{ borderColor: "oklch(1 0 0 / 0.1)" }}
-        >
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "oklch(0.65 0.28 300 / 0.15)" }}
-          >
-            <CreditCard
-              className="w-5 h-5"
-              style={{ color: "oklch(0.65 0.28 300)" }}
-            />
-          </div>
-          <div>
-            <p
-              className="font-bold text-sm"
-              style={{ color: "oklch(0.97 0.005 240)" }}
-            >
-              {data.idType}
-            </p>
-            <p
-              className="text-xs mt-0.5"
-              style={{ color: "oklch(0.65 0.28 300)" }}
-            >
-              Issued by {data.issuedBy}
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Photo + Name section */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.22, duration: 0.4 }}
-          className="px-6 py-5 flex items-start gap-5"
-        >
-          <div
-            className="w-24 h-28 rounded-xl overflow-hidden flex-shrink-0 border-2"
-            style={{ borderColor: "oklch(0.65 0.28 300 / 0.5)" }}
-          >
-            {photoUrl ? (
-              <img
-                src={photoUrl}
-                alt={data.fullName}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div
-                className="w-full h-full flex items-center justify-center"
-                style={{ background: "oklch(1 0 0 / 0.08)" }}
-              >
-                <User
-                  className="w-10 h-10"
-                  style={{ color: "oklch(1 0 0 / 0.3)" }}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 min-w-0 pt-1">
-            <p
-              className="font-orbitron font-bold text-xl leading-tight"
-              style={{
-                color: "oklch(0.97 0.005 240)",
-                textShadow: "0 0 8px oklch(0.65 0.28 300 / 0.5)",
-              }}
-            >
-              {data.fullName}
-            </p>
-            <p
-              className="text-xs font-exo mt-1"
-              style={{ color: "oklch(0.7 0.02 250)" }}
-            >
-              {data.idType}
-            </p>
-            <div
-              className="mt-3 px-2.5 py-1 rounded-lg inline-block"
-              style={{ background: "oklch(0.65 0.28 300 / 0.12)" }}
-            >
-              <p
-                className="text-xs font-mono font-semibold"
-                style={{ color: "oklch(0.65 0.28 300)" }}
-              >
-                {data.idNumber}
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Details grid — staggered */}
-        <div
-          className="px-6 pb-6 grid grid-cols-2 gap-3"
-          style={{ borderTop: "1px solid oklch(1 0 0 / 0.08)" }}
-        >
-          {detailFields.map((field, i) => (
-            <motion.div
-              key={field.label}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.04 + i * 0.04, duration: 0.25 }}
-              className={field.span ? "col-span-2" : ""}
-            >
-              <DetailField
-                icon={field.icon}
-                label={field.label}
-                value={field.value}
-                dark
-              />
-            </motion.div>
-          ))}
-        </div>
-
-        <div className="h-1" style={{ background: "oklch(1 0 0 / 0.06)" }} />
-      </motion.div>
-
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        className="text-center text-xs text-muted-foreground mt-4"
-      >
-        Present this card as a valid identification document
-      </motion.p>
-    </motion.div>
-  );
-}
-
-function DetailField({
-  icon,
-  label,
-  value,
-  dark = false,
-  className = "",
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  dark?: boolean;
-  className?: string;
-}) {
-  return (
-    <div className={`pt-3 ${className}`}>
-      <div
-        className="flex items-center gap-1.5 mb-1"
-        style={{ color: dark ? "oklch(0.6 0.02 250)" : undefined }}
-      >
-        {icon}
-        <span className="text-[10px] uppercase tracking-wider font-semibold">
-          {label}
-        </span>
-      </div>
-      <p
-        className="text-sm font-semibold"
-        style={{ color: dark ? "oklch(0.95 0.005 240)" : undefined }}
-      >
-        {value || "—"}
-      </p>
-    </div>
-  );
-}
-
-function CardViewerSkeleton() {
-  return (
-    <div className="rounded-3xl overflow-hidden max-w-[420px] mx-auto">
-      <Skeleton className="h-1.5 w-full" />
-      <div className="p-6 space-y-4">
-        <Skeleton className="h-12 w-full" />
-        <div className="flex gap-5">
-          <Skeleton className="w-24 h-28 rounded-xl flex-shrink-0" />
-          <div className="flex-1 space-y-2 pt-1">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-8 w-28 mt-3" />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 pt-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i}>
-              <Skeleton className="h-3 w-20 mb-1.5" />
-              <Skeleton className="h-5 w-full" />
-            </div>
-          ))}
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div
+            data-ocid="viewer.dialog"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.8)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 50,
+              padding: "1.25rem",
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-card"
+              style={{ width: "100%", maxWidth: "340px", padding: "1.75rem" }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: "0.75rem",
+                }}
+              >
+                <h3
+                  style={{
+                    fontFamily: "'Orbitron', sans-serif",
+                    fontSize: "1rem",
+                    color: "rgba(255,80,80,0.9)",
+                    margin: 0,
+                  }}
+                >
+                  Delete ID?
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "rgba(255,255,255,0.4)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p
+                style={{
+                  fontFamily: "'Exo 2', sans-serif",
+                  fontSize: "0.85rem",
+                  color: "rgba(255,255,255,0.6)",
+                  marginBottom: "1.5rem",
+                }}
+              >
+                This action cannot be undone. The ID card will be permanently
+                removed from your vault.
+              </p>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <button
+                  type="button"
+                  data-ocid="viewer.cancel_button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="neon-btn"
+                  style={{
+                    flex: 1,
+                    padding: "0.7rem",
+                    borderRadius: "8px",
+                    border: "1px solid rgba(0,255,255,0.25)",
+                    background: "transparent",
+                    color: "rgba(0,255,255,0.7)",
+                    fontFamily: "'Orbitron', sans-serif",
+                    fontSize: "0.78rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  data-ocid="viewer.confirm_button"
+                  onClick={handleDelete}
+                  disabled={deleteCard.isPending}
+                  className="neon-btn"
+                  style={{
+                    flex: 1,
+                    padding: "0.7rem",
+                    borderRadius: "8px",
+                    border: "1px solid rgba(255,60,60,0.5)",
+                    background: "rgba(255,40,40,0.12)",
+                    color: "rgba(255,80,80,0.9)",
+                    fontFamily: "'Orbitron', sans-serif",
+                    fontSize: "0.78rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.4rem",
+                  }}
+                >
+                  {deleteCard.isPending ? (
+                    <Loader2
+                      size={14}
+                      style={{ animation: "spin 1s linear infinite" }}
+                    />
+                  ) : (
+                    <Trash2 size={14} />
+                  )}
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

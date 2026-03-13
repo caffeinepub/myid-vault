@@ -105,41 +105,40 @@
   }
 }
 
-/* ─── RGB Glow Keyframes (Enhanced) ─────────────────────────────── */
+/* ─── RGB Glow Keyframes — Directional Left → Right ─────────────── */
+/* The glow hotspot travels from left side to right side of the element */
 @keyframes rgb-glow {
-  0%   { box-shadow: 0 0 12px 3px #ff00aa99, 0 0 28px 6px #ff00aa33, 0 0 0 1px #ff00aa44; }
-  20%  { box-shadow: 0 0 12px 3px #ff880099, 0 0 28px 6px #ff880033, 0 0 0 1px #ff880044; }
-  40%  { box-shadow: 0 0 12px 3px #00ffaa99, 0 0 28px 6px #00ffaa33, 0 0 0 1px #00ffaa44; }
-  60%  { box-shadow: 0 0 12px 3px #00ccff99, 0 0 28px 6px #00ccff33, 0 0 0 1px #00ccff44; }
-  80%  { box-shadow: 0 0 12px 3px #aa00ff99, 0 0 28px 6px #aa00ff33, 0 0 0 1px #aa00ff44; }
-  100% { box-shadow: 0 0 12px 3px #ff00aa99, 0 0 28px 6px #ff00aa33, 0 0 0 1px #ff00aa44; }
+  0%   { box-shadow: -18px 0 22px 4px #00ccff88, 0 0 8px 1px #00ccff22, 0 0 0 1px #00ccff33; }
+  20%  { box-shadow: -4px  0 24px 5px #00ccff99, 6px 0 14px 2px #00ccff44, 0 0 0 1px #00ccff44; }
+  40%  { box-shadow: 8px   0 24px 5px #aa00ff88, 18px 0 18px 3px #aa00ff33, 0 0 0 1px #aa00ff33; }
+  60%  { box-shadow: 16px  0 22px 4px #00ffaa88, 22px 0 14px 3px #00ffaa22, 0 0 0 1px #00ffaa33; }
+  80%  { box-shadow: 10px  0 20px 4px #ff00aa77, 4px 0 12px 2px #ff00aa22, 0 0 0 1px #ff00aa33; }
+  100% { box-shadow: -18px 0 22px 4px #00ccff88, 0 0 8px 1px #00ccff22, 0 0 0 1px #00ccff33; }
 }
 
 @keyframes rgb-glow-pulse {
-  0%, 100% { opacity: 0.85; }
+  0%, 100% { opacity: 0.88; }
   50%       { opacity: 1; }
 }
 
 @keyframes rgb-border-anim {
-  0%   { border-color: #ff00aa66; }
-  20%  { border-color: #ff880066; }
-  40%  { border-color: #00ffaa66; }
-  60%  { border-color: #00ccff66; }
-  80%  { border-color: #aa00ff66; }
-  100% { border-color: #ff00aa66; }
+  0%   { border-color: #00ccff66; }
+  25%  { border-color: #aa00ff66; }
+  50%  { border-color: #00ffaa66; }
+  75%  { border-color: #ff00aa55; }
+  100% { border-color: #00ccff66; }
 }
 
-/* ─── Button Auto-Glow (New) ─────────────────────────────────────── */
-@keyframes btn-auto-glow {
-  0%   { box-shadow: 0 0 0px 0px transparent; filter: brightness(1); }
-  10%  { box-shadow: 0 0 18px 5px #00ccff66, 0 0 36px 10px #00ccff22; filter: brightness(1.15); }
-  25%  { box-shadow: 0 0 10px 2px #00ccff33; filter: brightness(1.05); }
-  35%  { box-shadow: 0 0 0px 0px transparent; filter: brightness(1); }
-  50%  { box-shadow: 0 0 18px 5px #aa00ff66, 0 0 36px 10px #aa00ff22; filter: brightness(1.15); }
-  65%  { box-shadow: 0 0 10px 2px #aa00ff33; filter: brightness(1.05); }
-  75%  { box-shadow: 0 0 0px 0px transparent; filter: brightness(1); }
-  88%  { box-shadow: 0 0 18px 5px #00ffaa66, 0 0 36px 10px #00ffaa22; filter: brightness(1.15); }
-  100% { box-shadow: 0 0 0px 0px transparent; filter: brightness(1); }
+/* ─── Button Auto-Glow — Left-to-Right Sweep ────────────────────── */
+/* The glowing hotspot travels left → right across the button surface  */
+@keyframes btn-glow-lr {
+  0%   { box-shadow: none; filter: brightness(1); }
+  4%   { box-shadow: -22px 0 18px 3px #00ccff55; filter: brightness(1); }
+  12%  { box-shadow: -8px 0 24px 6px #00ccff88, 4px 0 14px 3px #00ccff44; filter: brightness(1.15); }
+  22%  { box-shadow: 10px 0 24px 6px #aa00ff77, 22px 0 12px 2px #aa00ff33; filter: brightness(1.12); }
+  30%  { box-shadow: 24px 0 18px 3px #00ffaa44; filter: brightness(1.05); }
+  34%  { box-shadow: none; filter: brightness(1); }
+  100% { box-shadow: none; filter: brightness(1); }
 }
 
 /* ─── Neon Text Pulse ────────────────────────────────────────────── */
@@ -222,6 +221,57 @@
   50%       { opacity: 0.32; transform: translateX(-50%) scale(1.08); }
 }
 
+/* ─── Left-to-Right Color Sweep (Scan-line effect) ──────────────── */
+
+/* Main horizontal neon sweep — moves left → right across full width */
+@keyframes sweep-lr {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+/* Thin bright scan line that moves top → bottom, row by row */
+@keyframes scan-line-down {
+  0%   { top: -2%; opacity: 0; }
+  3%   { opacity: 1; }
+  97%  { opacity: 1; }
+  100% { top: 102%; opacity: 0; }
+}
+
+/* Row-skip scan: translates both X and Y in step-based keyframes
+   so it looks like a spotlight scanning L→R then snapping to the next row */
+@keyframes scan-row-sweep {
+  0%   { transform: translate(-110%, 0vh);       opacity: 0; }
+  2%   { transform: translate(-110%, 0vh);       opacity: 1; }
+  14%  { transform: translate(110%, 0vh);        opacity: 1; }
+  15%  { transform: translate(-110%, 14.28vh);   opacity: 0; }
+  16%  { transform: translate(-110%, 14.28vh);   opacity: 1; }
+  28%  { transform: translate(110%, 14.28vh);    opacity: 1; }
+  29%  { transform: translate(-110%, 28.56vh);   opacity: 0; }
+  30%  { transform: translate(-110%, 28.56vh);   opacity: 1; }
+  42%  { transform: translate(110%, 28.56vh);    opacity: 1; }
+  43%  { transform: translate(-110%, 42.84vh);   opacity: 0; }
+  44%  { transform: translate(-110%, 42.84vh);   opacity: 1; }
+  56%  { transform: translate(110%, 42.84vh);    opacity: 1; }
+  57%  { transform: translate(-110%, 57.12vh);   opacity: 0; }
+  58%  { transform: translate(-110%, 57.12vh);   opacity: 1; }
+  70%  { transform: translate(110%, 57.12vh);    opacity: 1; }
+  71%  { transform: translate(-110%, 71.40vh);   opacity: 0; }
+  72%  { transform: translate(-110%, 71.40vh);   opacity: 1; }
+  84%  { transform: translate(110%, 71.40vh);    opacity: 1; }
+  85%  { transform: translate(-110%, 85.68vh);   opacity: 0; }
+  86%  { transform: translate(-110%, 85.68vh);   opacity: 1; }
+  98%  { transform: translate(110%, 85.68vh);    opacity: 1; }
+  99%  { transform: translate(110%, 85.68vh);    opacity: 0; }
+  100% { transform: translate(-110%, 0vh);       opacity: 0; }
+}
+
+/* Scan overlay classes — disabled (ScanOverlay component returns empty) */
+.scan-overlay,
+.scan-line,
+.scan-row-beam {
+  display: none;
+}
+
 /* ─── Custom Utilities ───────────────────────────────────────────── */
 @layer utilities {
   .font-display {
@@ -242,37 +292,54 @@
     font-family: "Instrument Serif", serif;
   }
 
-  /* RGB Glow — full cycling */
+  /* RGB Glow — only glows on hover/touch (no always-on animation) */
   .rgb-glow {
-    animation: rgb-glow 3s linear infinite, rgb-glow-pulse 1.5s ease-in-out infinite;
+    box-shadow: none;
+    transition: box-shadow 0.25s ease;
   }
 
-  /* Smaller/slower RGB glow for borders/headers */
+  .rgb-glow:hover,
+  .rgb-glow:active {
+    box-shadow: 0 0 20px 4px #00ccff88, 0 0 40px 8px #aa00ff44;
+  }
+
+  /* Smaller RGB glow — only glows on hover/touch */
   .rgb-glow-sm {
-    animation: rgb-glow 5s linear infinite;
+    box-shadow: none;
+    transition: box-shadow 0.25s ease;
+  }
+
+  .rgb-glow-sm:hover,
+  .rgb-glow-sm:active {
+    box-shadow: 0 0 12px 3px #00ccff66, 0 0 24px 5px #aa00ff33;
   }
 
   /* RGB border cycle */
   .rgb-border {
-    animation: rgb-border-anim 3s linear infinite;
+    animation: rgb-border-anim 4s linear infinite;
     border-width: 1px;
     border-style: solid;
   }
 
-  /* Button auto-glow — breathes cyan → violet → green sequentially */
-  .btn-auto-glow {
-    animation: btn-auto-glow 6s ease-in-out infinite;
-  }
-
-  /* Staggered phase variants */
-  .btn-auto-glow-delay-1 {
-    animation: btn-auto-glow 6s ease-in-out infinite;
-    animation-delay: -2s;
-  }
-
+  /* Button glow — only on hover/touch (no always-on animation) */
+  .btn-auto-glow,
+  .btn-auto-glow-delay-1,
   .btn-auto-glow-delay-2 {
-    animation: btn-auto-glow 6s ease-in-out infinite;
-    animation-delay: -4s;
+    position: relative;
+    overflow: hidden;
+    box-shadow: none;
+    filter: brightness(1);
+    transition: box-shadow 0.25s ease, filter 0.25s ease;
+  }
+
+  .btn-auto-glow:hover,
+  .btn-auto-glow:active,
+  .btn-auto-glow-delay-1:hover,
+  .btn-auto-glow-delay-1:active,
+  .btn-auto-glow-delay-2:hover,
+  .btn-auto-glow-delay-2:active {
+    box-shadow: 0 0 24px 6px #00ccff88, 0 0 48px 10px #aa00ff44;
+    filter: brightness(1.15);
   }
 
   /* Neon text glow */

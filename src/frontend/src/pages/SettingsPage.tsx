@@ -1,990 +1,718 @@
-import { Switch } from "@/components/ui/switch";
 import {
   ArrowLeft,
   Check,
-  ImageIcon,
+  ChevronRight,
   Instagram,
+  Loader2,
+  Lock,
   Mail,
-  MessageCircle,
-  Monitor,
-  Moon,
-  Settings,
-  Sparkles,
-  Sun,
+  Palette,
+  Phone,
+  Shield,
   Upload,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
+import { useState } from "react";
 import { toast } from "sonner";
 import type { AppPage } from "../App";
-import type { BackgroundSetting } from "../components/AppBackground";
+import type { BgStyle } from "../components/AnimatedBackground";
+import { useGetProfile, useSaveProfile } from "../hooks/useQueries";
+import {
+  SECURITY_QUESTIONS,
+  getAutoLock,
+  getBackgroundPreference,
+  getSecurityQuestion,
+  hashString,
+  setAutoLock,
+  setBackgroundPreference,
+  setSecurityQuestion,
+} from "../lib/storage";
 
-export interface UserSettings {
-  theme: string;
-  autoLock: boolean;
-  background: BackgroundSetting;
-}
+const BG_OPTIONS: { key: BgStyle; label: string; desc: string }[] = [
+  { key: "neon-aurora", label: "Neon Aurora", desc: "Aurora Blobs" },
+  { key: "cyber-wave", label: "Cyber Wave", desc: "Animated Gradient" },
+  { key: "particle-storm", label: "Particle Storm", desc: "Neon Particles" },
+  { key: "grid-pulse", label: "Grid Pulse", desc: "Neon Grid" },
+  { key: "plasma-flow", label: "Plasma Flow", desc: "Plasma Wave" },
+];
 
-const SETTINGS_KEY = "myid-vault-settings-ii";
-
-function loadSettings(): UserSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw)
-      return {
-        theme: "system",
-        autoLock: false,
-        background: { type: "preset", value: "aurora" },
-      };
-    const parsed = JSON.parse(raw) as Partial<UserSettings>;
-    return {
-      theme: parsed.theme ?? "system",
-      autoLock: parsed.autoLock ?? false,
-      background: parsed.background ?? { type: "preset", value: "aurora" },
-    };
-  } catch {
-    return {
-      theme: "system",
-      autoLock: false,
-      background: { type: "preset", value: "aurora" },
-    };
-  }
-}
-
-function saveSettings(settings: UserSettings): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
-
-interface SettingsPageProps {
-  navigate: (page: AppPage) => void;
-}
-
-// Apply theme to document
-function applyTheme(theme: string) {
-  const root = document.documentElement;
-  if (theme === "dark") {
-    root.classList.add("dark");
-  } else if (theme === "light") {
-    root.classList.remove("dark");
-  } else {
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)",
-    ).matches;
-    if (prefersDark) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-  }
-}
-
-type ThemeOption = "dark" | "light" | "system";
-
-/* Mini static thumbnail representing each animated style */
-function AnimatedThumbnail({
-  animKey,
-  color,
+export default function SettingsPage({
+  navigate,
+  principalText,
 }: {
-  animKey: string;
-  color: string;
+  navigate: (p: AppPage) => void;
+  principalText: string;
 }) {
-  const styles: Record<string, React.CSSProperties> = {
-    "cyber-wave": {
-      background: `linear-gradient(135deg, oklch(0.04 0.01 260) 0%, ${color} 50%, oklch(0.65 0.28 300) 100%)`,
-    },
-    "particle-storm": {
-      background: `radial-gradient(circle at 30% 40%, ${color} 0%, oklch(0.04 0.01 260) 70%)`,
-    },
-    "neon-aurora": {
-      background: `radial-gradient(ellipse at 50% 60%, ${color} 0%, oklch(0.65 0.28 300 / 0.6) 50%, oklch(0.04 0.01 260) 80%)`,
-    },
-    "grid-pulse": {
-      background: `repeating-linear-gradient(0deg, transparent, transparent 5px, ${color}30 5px, ${color}30 6px), repeating-linear-gradient(90deg, transparent, transparent 5px, ${color}30 5px, ${color}30 6px), oklch(0.04 0.01 260)`,
-    },
-    "plasma-flow": {
-      background: `conic-gradient(from 30deg at 50% 50%, ${color}, oklch(0.65 0.28 300), oklch(0.68 0.28 340), ${color})`,
-    },
-  };
-  return (
-    <div
-      style={{
-        position: "absolute",
-        inset: 0,
-        borderRadius: "10px",
-        ...(styles[animKey] ?? { background: `${color}44` }),
-      }}
-    />
+  const existingSecQ = getSecurityQuestion(principalText);
+  const [autoLock, setAutoLockState] = useState(() =>
+    getAutoLock(principalText),
   );
-}
+  const [bg, setBg] = useState(() => getBackgroundPreference());
 
-export default function SettingsPage({ navigate }: SettingsPageProps) {
-  const settings = loadSettings();
-
-  // Preferences state
-  const [theme, setTheme] = useState<ThemeOption>(
-    (settings.theme as ThemeOption) || "system",
+  // Security question form
+  const [showSecQForm, setShowSecQForm] = useState(false);
+  const [secQuestion, setSecQuestion] = useState(
+    existingSecQ?.question || SECURITY_QUESTIONS[0],
   );
-  const [autoLock, setAutoLock] = useState(settings.autoLock ?? false);
+  const [secAnswer, setSecAnswer] = useState("");
+  const [secSaving, setSecSaving] = useState(false);
 
-  // Background state
-  const [currentBg, setCurrentBg] = useState<BackgroundSetting>(
-    settings.background ?? { type: "preset", value: "aurora" },
-  );
-  const [customPreviewUrl, setCustomPreviewUrl] = useState<string | null>(
-    settings.background?.type === "custom"
-      ? (settings.background.value ?? null)
-      : null,
-  );
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Profile name edit
+  const { data: profile } = useGetProfile();
+  const saveProfile = useSaveProfile();
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState("");
 
-  interface BgPreset {
-    key: string;
-    label: string;
-    type: "neon" | "preset" | "animated";
-    value?: string;
-    thumbnail?: string;
-    category?: string;
-    color?: string;
-  }
-
-  const ANIMATED_PRESETS: BgPreset[] = [
-    {
-      key: "cyber-wave",
-      label: "Cyber Wave",
-      type: "animated",
-      value: "cyber-wave",
-      category: "Animated Gradient",
-      color: "oklch(0.72 0.22 195)",
-    },
-    {
-      key: "particle-storm",
-      label: "Particle Storm",
-      type: "animated",
-      value: "particle-storm",
-      category: "Neon Particles",
-      color: "oklch(0.65 0.28 300)",
-    },
-    {
-      key: "neon-aurora",
-      label: "Neon Aurora",
-      type: "animated",
-      value: "neon-aurora",
-      category: "Aurora Blobs",
-      color: "oklch(0.72 0.22 150)",
-    },
-    {
-      key: "grid-pulse",
-      label: "Grid Pulse",
-      type: "animated",
-      value: "grid-pulse",
-      category: "Neon Grid",
-      color: "oklch(0.72 0.22 195)",
-    },
-    {
-      key: "plasma-flow",
-      label: "Plasma Flow",
-      type: "animated",
-      value: "plasma-flow",
-      category: "Plasma Wave",
-      color: "oklch(0.75 0.25 30)",
-    },
-  ];
-
-  const BG_PRESETS: BgPreset[] = [
-    { key: "neon", label: "Neon Rain", type: "neon" },
-    {
-      key: "galaxy",
-      label: "Galaxy",
-      type: "preset",
-      value: "galaxy",
-      thumbnail: "/assets/generated/bg-galaxy.dim_1080x1920.jpg",
-    },
-    {
-      key: "waves",
-      label: "Waves",
-      type: "preset",
-      value: "waves",
-      thumbnail: "/assets/generated/bg-waves.dim_1080x1920.jpg",
-    },
-    {
-      key: "city",
-      label: "City Night",
-      type: "preset",
-      value: "city",
-      thumbnail: "/assets/generated/bg-city.dim_1080x1920.jpg",
-    },
-    {
-      key: "nature",
-      label: "Nature",
-      type: "preset",
-      value: "nature",
-      thumbnail: "/assets/generated/bg-nature.dim_1080x1920.jpg",
-    },
-    {
-      key: "aurora",
-      label: "Aurora",
-      type: "preset",
-      value: "aurora",
-      thumbnail: "/assets/generated/bg-aurora.dim_1080x1920.jpg",
-    },
-  ];
-
-  const isPresetActive = (preset: BgPreset): boolean => {
-    if (preset.type === "neon") return currentBg.type === "neon";
-    if (preset.type === "animated")
-      return currentBg.type === "animated" && currentBg.value === preset.value;
-    return currentBg.type === "preset" && currentBg.value === preset.value;
+  const handleAutoLockToggle = () => {
+    const next = !autoLock;
+    setAutoLockState(next);
+    setAutoLock(principalText, next);
+    toast.success(next ? "Auto-lock enabled" : "Auto-lock disabled");
   };
 
-  const updateAndSaveSettings = (partial: Partial<UserSettings>) => {
-    const current = loadSettings();
-    const merged: UserSettings = { ...current, ...partial };
-    saveSettings(merged);
+  const handleBgChange = (style: BgStyle | "photo") => {
+    setBg(style);
+    setBackgroundPreference(style);
   };
 
-  const handleSelectPreset = (preset: BgPreset) => {
-    const newBg: BackgroundSetting =
-      preset.type === "neon"
-        ? { type: "neon" }
-        : preset.type === "animated"
-          ? { type: "animated", value: preset.value }
-          : { type: "preset", value: preset.value };
-    setCurrentBg(newBg);
-    setCustomPreviewUrl(null);
-    updateAndSaveSettings({ background: newBg });
-    window.dispatchEvent(new Event("myid-bg-change"));
-    toast.success("Background updated!");
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.warning("Image is over 5MB — it may slow down the app slightly.");
-    }
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      const newBg: BackgroundSetting = { type: "custom", value: dataUrl };
-      setCurrentBg(newBg);
-      setCustomPreviewUrl(dataUrl);
-      updateAndSaveSettings({ background: newBg });
-      window.dispatchEvent(new Event("myid-bg-change"));
-      toast.success("Background updated!");
+    reader.onloadend = () => {
+      const url = reader.result as string;
+      localStorage.setItem("myid_bg_photo", url);
+      setBg("photo");
+      setBackgroundPreference("photo");
+      toast.success("Background updated");
     };
     reader.readAsDataURL(file);
-    e.target.value = "";
   };
 
-  // Apply saved theme on mount
-  useEffect(() => {
-    applyTheme(settings.theme);
-  }, [settings.theme]);
-
-  const handleThemeChange = (newTheme: ThemeOption) => {
-    setTheme(newTheme);
-    updateAndSaveSettings({ theme: newTheme });
-    applyTheme(newTheme);
+  const handleSaveSecQ = () => {
+    if (!secAnswer.trim()) {
+      toast.error("Please enter your answer");
+      return;
+    }
+    setSecSaving(true);
+    setTimeout(() => {
+      setSecurityQuestion(
+        principalText,
+        secQuestion,
+        hashString(secAnswer.trim().toLowerCase()),
+      );
+      toast.success("Recovery question saved!");
+      setShowSecQForm(false);
+      setSecAnswer("");
+      setSecSaving(false);
+    }, 300);
   };
 
-  const handleAutoLockChange = (checked: boolean) => {
-    setAutoLock(checked);
-    updateAndSaveSettings({ autoLock: checked });
+  const handleSaveName = async () => {
+    if (!nameValue.trim()) return;
+    await saveProfile.mutateAsync(nameValue.trim());
+    toast.success("Name updated!");
+    setEditingName(false);
   };
-
-  const themeOptions: {
-    value: ThemeOption;
-    label: string;
-    icon: React.ReactNode;
-  }[] = [
-    { value: "light", label: "Light", icon: <Sun className="w-4 h-4" /> },
-    { value: "dark", label: "Dark", icon: <Moon className="w-4 h-4" /> },
-    { value: "system", label: "System", icon: <Monitor className="w-4 h-4" /> },
-  ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div
+      data-ocid="settings.page"
+      style={{
+        minHeight: "100dvh",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 2rem)",
+      }}
+    >
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border rgb-glow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-          <motion.button
-            type="button"
-            onClick={() => navigate({ type: "home" })}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            data-ocid="settings.back.button"
-            className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors btn-auto-glow-delay-2"
-            aria-label="Back to home"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </motion.button>
-
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="flex items-center gap-2"
-          >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center rgb-glow-sm"
-              style={{
-                background:
-                  "linear-gradient(135deg, oklch(0.15 0.08 220), oklch(0.55 0.2 195))",
-                boxShadow: "0 0 10px 2px oklch(0.72 0.22 195 / 0.25)",
-              }}
-            >
-              <Settings
-                className="w-4 h-4"
-                style={{ color: "oklch(0.97 0.005 240)" }}
-              />
-            </div>
-            <h1 className="text-3d-sm text-sm leading-none">Settings</h1>
-          </motion.div>
-        </div>
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.75rem",
+          padding: "0 1.25rem 1rem",
+        }}
+      >
+        <button
+          type="button"
+          data-ocid="settings.close_button"
+          onClick={() => navigate({ type: "home" })}
+          className="neon-btn"
+          style={{
+            background: "transparent",
+            border: "1px solid rgba(0,255,255,0.2)",
+            borderRadius: "8px",
+            padding: "0.45rem",
+            color: "rgba(0,255,255,0.7)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <h2
+          style={{
+            fontFamily: "'Orbitron', sans-serif",
+            fontSize: "1rem",
+            color: "rgba(0,255,255,0.9)",
+            margin: 0,
+          }}
+        >
+          Settings
+        </h2>
       </header>
 
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 space-y-6">
-        {/* ── Section 1: Preferences ── */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            type: "spring",
-            stiffness: 240,
-            damping: 22,
-            mass: 0.85,
-            delay: 0.05,
-          }}
-          className="rounded-2xl border border-border bg-card overflow-hidden rgb-glow-sm"
-        >
-          {/* Section header */}
-          <div
-            className="px-5 py-4 border-b border-border flex items-center gap-3"
-            style={{ background: "oklch(0.65 0.28 300 / 0.04)" }}
-          >
+      <div
+        style={{
+          padding: "0 1.25rem",
+          display: "flex",
+          flexDirection: "column",
+          gap: "1.25rem",
+        }}
+      >
+        {/* Profile section */}
+        <section>
+          <SectionTitle icon={<Shield size={16} />} title="Profile" />
+          <div className="glass-card" style={{ padding: "1rem" }}>
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "oklch(0.65 0.28 300 / 0.12)" }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
             >
-              <Settings
-                className="w-4 h-4"
-                style={{ color: "oklch(0.65 0.28 300)" }}
-              />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">
-                Preferences
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Theme and session settings
-              </p>
-            </div>
-          </div>
-
-          <div className="p-5 space-y-6">
-            {/* Theme selector */}
-            <div className="space-y-3">
               <div>
-                <p className="text-sm font-medium text-foreground">App Theme</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Choose how MyID Vault looks
+                <p
+                  style={{
+                    fontFamily: "'Orbitron', sans-serif",
+                    fontSize: "0.75rem",
+                    color: "rgba(0,255,255,0.6)",
+                    marginBottom: "0.2rem",
+                  }}
+                >
+                  DISPLAY NAME
                 </p>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {themeOptions.map((opt) => (
-                  <motion.button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => handleThemeChange(opt.value)}
-                    whileTap={{ scale: 0.96 }}
-                    data-ocid={`settings.theme.${opt.value}.toggle`}
-                    className={`flex flex-col items-center gap-2 px-3 py-3 rounded-xl border text-sm font-medium transition-all ${
-                      theme === opt.value
-                        ? "rgb-glow"
-                        : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                    }`}
-                    style={
-                      theme === opt.value
-                        ? {
-                            background:
-                              "linear-gradient(135deg, oklch(0.72 0.22 195 / 0.1), oklch(0.65 0.28 300 / 0.06))",
-                            border: "1.5px solid oklch(0.72 0.22 195 / 0.5)",
-                            color: "oklch(0.72 0.22 195)",
-                          }
-                        : {}
-                    }
-                  >
-                    {opt.icon}
-                    <span className="text-xs">{opt.label}</span>
-                    {theme === opt.value && (
-                      <motion.div
-                        layoutId="theme-active"
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{ background: "oklch(0.72 0.22 195)" }}
-                      />
-                    )}
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div
-              className="h-px w-full rgb-glow-sm"
-              style={{ background: "oklch(0.22 0.03 260)" }}
-            />
-
-            {/* Auto-lock toggle */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">
-                  Auto-lock on Tab Close
-                </p>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  When enabled, you'll be logged out automatically when you
-                  close the browser tab.
-                </p>
-              </div>
-              <Switch
-                checked={autoLock}
-                onCheckedChange={handleAutoLockChange}
-                data-ocid="settings.autolock.switch"
-                className="mt-0.5 flex-shrink-0"
-                aria-label="Auto-lock on tab close"
-              />
-            </div>
-          </div>
-        </motion.section>
-
-        {/* ── Section 2: Background ── */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            type: "spring",
-            stiffness: 240,
-            damping: 22,
-            mass: 0.85,
-            delay: 0.12,
-          }}
-          className="rounded-2xl border border-border bg-card overflow-hidden rgb-glow-sm"
-          data-ocid="settings.background.section"
-        >
-          {/* Section header */}
-          <div
-            className="px-5 py-4 border-b border-border flex items-center gap-3"
-            style={{ background: "oklch(0.62 0.22 60 / 0.04)" }}
-          >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "oklch(0.62 0.22 60 / 0.14)" }}
-            >
-              <ImageIcon
-                className="w-4 h-4"
-                style={{ color: "oklch(0.75 0.22 60)" }}
-              />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">
-                Background
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Personalise your app background
-              </p>
-            </div>
-          </div>
-
-          <div className="p-5 space-y-5">
-            {/* Preset label */}
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Choose a Preset
-            </p>
-
-            {/* Preset grid — 3 columns */}
-            <div className="grid grid-cols-3 gap-3">
-              {BG_PRESETS.map((preset, idx) => {
-                const active = isPresetActive(preset);
-                const ocidIdx = idx + 1;
-                return (
-                  <motion.button
-                    key={preset.key}
-                    type="button"
-                    whileTap={{ scale: 0.94 }}
-                    whileHover={{ scale: 1.03 }}
-                    onClick={() => handleSelectPreset(preset)}
-                    data-ocid={`settings.background.preset.item.${ocidIdx}`}
-                    className="relative flex flex-col items-center rounded-xl overflow-hidden focus:outline-none"
+                {editingName ? (
+                  <div
                     style={{
-                      border: active
-                        ? "2px solid oklch(0.75 0.22 60)"
-                        : "2px solid oklch(0.22 0.03 260 / 0.6)",
-                      aspectRatio: "9/16",
-                      boxShadow: active
-                        ? "0 0 12px 2px oklch(0.75 0.22 60 / 0.4)"
-                        : "none",
-                      transition: "border-color 0.2s, box-shadow 0.2s",
+                      display: "flex",
+                      gap: "0.5rem",
+                      alignItems: "center",
                     }}
-                    aria-label={`Select ${preset.label} background`}
-                    aria-pressed={active}
                   >
-                    {/* Thumbnail */}
-                    {preset.type === "neon" ? (
-                      <div
-                        className="absolute inset-0"
-                        style={{
-                          background:
-                            "linear-gradient(160deg, oklch(0.055 0.014 260) 0%, oklch(0.12 0.08 220) 40%, oklch(0.08 0.06 280) 70%, oklch(0.055 0.014 260) 100%)",
-                        }}
-                      >
-                        <div
-                          style={{
-                            position: "absolute",
-                            top: 0,
-                            left: "15%",
-                            width: "25%",
-                            height: "70%",
-                            background:
-                              "linear-gradient(to bottom, #00eaffaa, transparent)",
-                            filter: "blur(8px)",
-                            opacity: 0.6,
-                          }}
-                        />
-                        <div
-                          style={{
-                            position: "absolute",
-                            top: 0,
-                            left: "55%",
-                            width: "30%",
-                            height: "60%",
-                            background:
-                              "linear-gradient(to bottom, #a855f7aa, transparent)",
-                            filter: "blur(10px)",
-                            opacity: 0.5,
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <img
-                        src={preset.thumbnail}
-                        alt={preset.label}
-                        className="absolute inset-0 w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    )}
-
-                    {/* Dark overlay for label readability */}
-                    <div
-                      className="absolute bottom-0 left-0 right-0"
+                    <input
+                      value={nameValue}
+                      onChange={(e) => setNameValue(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
                       style={{
-                        background:
-                          "linear-gradient(to top, oklch(0.04 0.01 260 / 0.85) 0%, transparent 100%)",
-                        paddingBottom: "6px",
-                        paddingTop: "14px",
+                        background: "rgba(0,255,255,0.05)",
+                        border: "1px solid rgba(0,255,255,0.3)",
+                        borderRadius: "6px",
+                        padding: "0.35rem 0.6rem",
+                        color: "white",
+                        fontFamily: "'Exo 2', sans-serif",
+                        fontSize: "0.88rem",
+                        outline: "none",
+                        width: "140px",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveName}
+                      disabled={saveProfile.isPending}
+                      className="neon-btn"
+                      style={{
+                        background: "transparent",
+                        border: "1px solid rgba(0,255,255,0.3)",
+                        borderRadius: "6px",
+                        padding: "0.3rem",
+                        color: "#00ffff",
+                        cursor: "pointer",
                       }}
                     >
-                      <p
-                        className="text-center text-xs font-semibold leading-tight"
-                        style={{ color: "oklch(0.97 0.005 240)" }}
-                      >
-                        {preset.label}
-                      </p>
-                    </div>
-
-                    {/* Active checkmark overlay */}
-                    {active && (
-                      <motion.div
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center"
-                        style={{
-                          background: "oklch(0.75 0.22 60)",
-                          boxShadow: "0 0 6px 1px oklch(0.75 0.22 60 / 0.6)",
-                        }}
-                      >
-                        <Check
-                          className="w-3 h-3"
-                          style={{ color: "oklch(0.1 0.02 60)" }}
+                      {saveProfile.isPending ? (
+                        <Loader2
+                          size={14}
+                          style={{ animation: "spin 1s linear infinite" }}
                         />
-                      </motion.div>
-                    )}
-                  </motion.button>
-                );
-              })}
+                      ) : (
+                        <Check size={14} />
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <p
+                    style={{
+                      fontFamily: "'Exo 2', sans-serif",
+                      fontSize: "0.9rem",
+                      color: "rgba(255,255,255,0.85)",
+                    }}
+                  >
+                    {profile?.name || "User"}
+                  </p>
+                )}
+              </div>
+              {!editingName && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNameValue(profile?.name || "");
+                    setEditingName(true);
+                  }}
+                  className="neon-btn"
+                  style={{
+                    background: "transparent",
+                    border: "1px solid rgba(0,255,255,0.2)",
+                    borderRadius: "6px",
+                    padding: "0.35rem 0.7rem",
+                    color: "rgba(0,255,255,0.6)",
+                    fontFamily: "'Exo 2', sans-serif",
+                    fontSize: "0.72rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  Edit
+                </button>
+              )}
             </div>
+          </div>
+        </section>
 
-            {/* Divider */}
+        {/* Account Security */}
+        <section>
+          <SectionTitle icon={<Lock size={16} />} title="Account Security" />
+          <div
+            className="glass-card"
+            style={{
+              padding: "1rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.75rem",
+            }}
+          >
+            {/* Status */}
             <div
-              className="h-px w-full"
-              style={{ background: "oklch(0.22 0.03 260)" }}
-            />
-
-            {/* Neon & Gradient Styles */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Sparkles
-                  className="w-3.5 h-3.5"
-                  style={{ color: "oklch(0.72 0.22 195)" }}
-                />
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Neon &amp; Gradient Styles
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <p
+                  style={{
+                    fontFamily: "'Orbitron', sans-serif",
+                    fontSize: "0.72rem",
+                    color: "rgba(0,255,255,0.6)",
+                    marginBottom: "0.2rem",
+                  }}
+                >
+                  RECOVERY QUESTION
+                </p>
+                <p
+                  style={{
+                    fontFamily: "'Exo 2', sans-serif",
+                    fontSize: "0.82rem",
+                    color: existingSecQ
+                      ? "rgba(0,255,170,0.8)"
+                      : "rgba(255,180,0,0.8)",
+                  }}
+                >
+                  {existingSecQ
+                    ? `✅ Set: "${existingSecQ.question.slice(0, 30)}…"`
+                    : "⚠️ Not set"}
                 </p>
               </div>
-              <div className="grid grid-cols-1 gap-2">
-                {ANIMATED_PRESETS.map((preset, idx) => {
-                  const active = isPresetActive(preset);
-                  const color = preset.color ?? "oklch(0.65 0.15 260)";
-                  return (
-                    <motion.button
-                      key={preset.key}
-                      type="button"
-                      whileTap={{ scale: 0.97 }}
-                      whileHover={{ scale: 1.01 }}
-                      onClick={() => handleSelectPreset(preset)}
-                      data-ocid={`settings.background.animated.item.${idx + 1}`}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left"
-                      style={{
-                        border: active
-                          ? `1.5px solid ${color}`
-                          : "1.5px solid oklch(0.22 0.03 260 / 0.8)",
-                        background: active
-                          ? "oklch(0.12 0.03 260 / 0.8)"
-                          : "oklch(0.10 0.02 260 / 0.5)",
-                        boxShadow: active ? `0 0 12px 2px ${color}55` : "none",
-                        transition: "border-color 0.2s, box-shadow 0.2s",
-                      }}
-                      aria-pressed={active}
-                      aria-label={`Select ${preset.label} animated background`}
-                    >
-                      {/* Mini thumbnail preview */}
-                      <div
-                        className="w-9 h-9 rounded-xl flex-shrink-0 overflow-hidden"
-                        style={{
-                          border: `1px solid ${color}44`,
-                          position: "relative",
-                        }}
-                      >
-                        <AnimatedThumbnail
-                          animKey={preset.value ?? ""}
-                          color={color}
-                        />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-foreground truncate">
-                            {preset.label}
-                          </p>
-                          {/* Category badge */}
-                          <span
-                            className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none"
-                            style={{
-                              background: `${color}20`,
-                              color,
-                              border: `1px solid ${color}40`,
-                            }}
-                          >
-                            {preset.category}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Live CSS animation
-                        </p>
-                      </div>
-
-                      {active && (
-                        <motion.div
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                          style={{
-                            background: color,
-                            boxShadow: `0 0 8px 2px ${color}88`,
-                          }}
-                        >
-                          <Check
-                            className="w-3 h-3"
-                            style={{ color: "oklch(0.1 0.02 260)" }}
-                          />
-                        </motion.div>
-                      )}
-                    </motion.button>
-                  );
-                })}
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowSecQForm((v) => !v)}
+                className="neon-btn"
+                style={{
+                  background: "transparent",
+                  border: "1px solid rgba(0,255,255,0.25)",
+                  borderRadius: "6px",
+                  padding: "0.35rem 0.7rem",
+                  color: "rgba(0,255,255,0.6)",
+                  fontFamily: "'Exo 2', sans-serif",
+                  fontSize: "0.72rem",
+                  cursor: "pointer",
+                }}
+              >
+                {existingSecQ ? "Change" : "Set Up"}
+              </button>
             </div>
 
-            {/* Divider */}
-            <div
-              className="h-px w-full"
-              style={{ background: "oklch(0.22 0.03 260)" }}
-            />
-
-            {/* Upload from Gallery */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Upload from Gallery
-              </p>
-
-              {/* Custom preview thumbnail */}
-              <AnimatePresence>
-                {customPreviewUrl && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div
-                      className="relative rounded-xl overflow-hidden"
-                      style={{
-                        height: "120px",
-                        border:
-                          currentBg.type === "custom"
-                            ? "2px solid oklch(0.75 0.22 60)"
-                            : "2px solid oklch(0.22 0.03 260)",
-                        boxShadow:
-                          currentBg.type === "custom"
-                            ? "0 0 12px 2px oklch(0.75 0.22 60 / 0.35)"
-                            : "none",
-                      }}
-                    >
-                      <img
-                        src={customPreviewUrl}
-                        alt="Custom background preview"
-                        className="w-full h-full object-cover"
-                      />
-                      {currentBg.type === "custom" && (
-                        <div
-                          className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold"
-                          style={{
-                            background: "oklch(0.75 0.22 60 / 0.9)",
-                            color: "oklch(0.1 0.02 60)",
-                          }}
-                        >
-                          <Check className="w-3 h-3" />
-                          Active
-                        </div>
-                      )}
-                      <div
-                        className="absolute bottom-0 left-0 right-0 px-3 py-2"
-                        style={{
-                          background:
-                            "linear-gradient(to top, oklch(0.04 0.01 260 / 0.8), transparent)",
-                        }}
-                      >
-                        <p
-                          className="text-xs font-medium"
-                          style={{ color: "oklch(0.92 0.005 240)" }}
-                        >
-                          Your custom background
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Upload button */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileUpload}
-                aria-label="Upload background image"
-              />
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.97 }}
-                whileHover={{ scale: 1.01 }}
-                onClick={() => fileInputRef.current?.click()}
-                data-ocid="settings.background.upload_button"
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all btn-auto-glow-delay-2"
+            {/* Form */}
+            {showSecQForm && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
                 style={{
-                  border: "1.5px dashed oklch(0.35 0.04 260)",
-                  background: "oklch(0.12 0.03 260 / 0.6)",
-                  color: "oklch(0.75 0.05 240)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.6rem",
+                  borderTop: "1px solid rgba(0,255,255,0.1)",
+                  paddingTop: "0.75rem",
+                }}
+              >
+                <select
+                  value={secQuestion}
+                  onChange={(e) => setSecQuestion(e.target.value)}
+                  data-ocid="settings.select"
+                  style={{
+                    width: "100%",
+                    background: "rgba(0,255,255,0.05)",
+                    border: "1px solid rgba(0,255,255,0.2)",
+                    borderRadius: "8px",
+                    padding: "0.6rem 0.75rem",
+                    color: "rgba(255,255,255,0.85)",
+                    fontFamily: "'Exo 2', sans-serif",
+                    fontSize: "0.82rem",
+                    outline: "none",
+                  }}
+                >
+                  {SECURITY_QUESTIONS.map((q) => (
+                    <option key={q} value={q}>
+                      {q}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  placeholder="Your answer"
+                  value={secAnswer}
+                  onChange={(e) => setSecAnswer(e.target.value)}
+                  data-ocid="settings.input"
+                  style={{
+                    width: "100%",
+                    background: "rgba(0,255,255,0.05)",
+                    border: "1px solid rgba(0,255,255,0.2)",
+                    borderRadius: "8px",
+                    padding: "0.6rem 0.75rem",
+                    color: "rgba(255,255,255,0.9)",
+                    fontFamily: "'Exo 2', sans-serif",
+                    fontSize: "0.88rem",
+                    outline: "none",
+                  }}
+                />
+                <button
+                  type="button"
+                  data-ocid="settings.save_button"
+                  onClick={handleSaveSecQ}
+                  disabled={secSaving}
+                  className="neon-btn"
+                  style={{
+                    padding: "0.6rem",
+                    borderRadius: "8px",
+                    border: "1.5px solid rgba(0,255,255,0.4)",
+                    background: "rgba(0,255,255,0.1)",
+                    color: "#00ffff",
+                    fontFamily: "'Orbitron', sans-serif",
+                    fontSize: "0.78rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.4rem",
+                  }}
+                >
+                  {secSaving ? (
+                    <Loader2
+                      size={14}
+                      style={{ animation: "spin 1s linear infinite" }}
+                    />
+                  ) : (
+                    <Check size={14} />
+                  )}
+                  Save Question
+                </button>
+              </motion.div>
+            )}
+
+            {/* Auto-lock */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderTop: "1px solid rgba(0,255,255,0.08)",
+                paddingTop: "0.75rem",
+              }}
+            >
+              <div>
+                <p
+                  style={{
+                    fontFamily: "'Orbitron', sans-serif",
+                    fontSize: "0.72rem",
+                    color: "rgba(0,255,255,0.6)",
+                    marginBottom: "0.15rem",
+                  }}
+                >
+                  AUTO-LOCK
+                </p>
+                <p
+                  style={{
+                    fontFamily: "'Exo 2', sans-serif",
+                    fontSize: "0.78rem",
+                    color: "rgba(255,255,255,0.45)",
+                  }}
+                >
+                  Lock when tab is closed
+                </p>
+              </div>
+              <button
+                type="button"
+                data-ocid="settings.switch"
+                onClick={handleAutoLockToggle}
+                style={{
+                  width: "46px",
+                  height: "26px",
+                  borderRadius: "13px",
+                  background: autoLock
+                    ? "rgba(0,255,255,0.3)"
+                    : "rgba(255,255,255,0.1)",
+                  border: autoLock
+                    ? "1px solid rgba(0,255,255,0.5)"
+                    : "1px solid rgba(255,255,255,0.2)",
+                  cursor: "pointer",
+                  position: "relative",
+                  transition: "all 0.2s ease",
+                  flexShrink: 0,
                 }}
               >
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{
-                    background: "oklch(0.62 0.22 60 / 0.14)",
+                    position: "absolute",
+                    top: "3px",
+                    left: autoLock ? "23px" : "3px",
+                    width: "18px",
+                    height: "18px",
+                    borderRadius: "50%",
+                    background: autoLock ? "#00ffff" : "rgba(255,255,255,0.5)",
+                    transition: "all 0.2s ease",
+                  }}
+                />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Background */}
+        <section>
+          <SectionTitle icon={<Palette size={16} />} title="Background" />
+          <div className="glass-card" style={{ padding: "1rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
+                gap: "0.6rem",
+                marginBottom: "0.75rem",
+              }}
+            >
+              {BG_OPTIONS.map((opt) => (
+                <button
+                  type="button"
+                  key={opt.key}
+                  onClick={() => handleBgChange(opt.key)}
+                  className="neon-btn"
+                  style={{
+                    padding: "0.6rem 0.75rem",
+                    borderRadius: "8px",
+                    border:
+                      bg === opt.key
+                        ? "1.5px solid rgba(0,255,255,0.6)"
+                        : "1px solid rgba(0,255,255,0.15)",
+                    background:
+                      bg === opt.key
+                        ? "rgba(0,255,255,0.12)"
+                        : "rgba(0,255,255,0.03)",
+                    cursor: "pointer",
+                    textAlign: "left",
                   }}
                 >
-                  <Upload
-                    className="w-4 h-4"
-                    style={{ color: "oklch(0.75 0.22 60)" }}
-                  />
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold text-foreground">
-                    {customPreviewUrl ? "Change Photo" : "Choose from Gallery"}
+                  <p
+                    style={{
+                      fontFamily: "'Orbitron', sans-serif",
+                      fontSize: "0.7rem",
+                      color:
+                        bg === opt.key ? "#00ffff" : "rgba(255,255,255,0.75)",
+                      marginBottom: "0.15rem",
+                    }}
+                  >
+                    {opt.label}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    JPG, PNG, WEBP — recommended under 5MB
+                  <p
+                    style={{
+                      fontFamily: "'Exo 2', sans-serif",
+                      fontSize: "0.65rem",
+                      color: "rgba(0,255,255,0.4)",
+                    }}
+                  >
+                    {opt.desc}
                   </p>
-                </div>
-                <Upload
-                  className="w-4 h-4 flex-shrink-0"
-                  style={{ color: "oklch(0.75 0.22 60)" }}
-                />
-              </motion.button>
+                </button>
+              ))}
             </div>
-          </div>
-        </motion.section>
-
-        {/* ── Section 3: Contact Us ── */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            type: "spring",
-            stiffness: 240,
-            damping: 22,
-            mass: 0.85,
-            delay: 0.19,
-          }}
-          className="rounded-2xl border border-border bg-card overflow-hidden rgb-glow-sm"
-          data-ocid="settings.contact.section"
-        >
-          {/* Section header */}
-          <div
-            className="px-5 py-4 border-b border-border flex items-center gap-3"
-            style={{ background: "oklch(0.72 0.22 130 / 0.04)" }}
-          >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "oklch(0.72 0.22 130 / 0.12)" }}
-            >
-              <MessageCircle
-                className="w-4 h-4"
-                style={{ color: "oklch(0.72 0.22 130)" }}
+            <label style={{ display: "block" }}>
+              <input
+                data-ocid="settings.upload_button"
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handlePhotoUpload}
               />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">
-                Contact Us
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Reach out via WhatsApp, Email, or Instagram
-              </p>
-            </div>
+              <div
+                className="neon-btn"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  padding: "0.55rem 1rem",
+                  borderRadius: "8px",
+                  border:
+                    bg === "photo"
+                      ? "1.5px solid rgba(0,255,255,0.5)"
+                      : "1px solid rgba(0,255,255,0.2)",
+                  background:
+                    bg === "photo" ? "rgba(0,255,255,0.1)" : "transparent",
+                  color: "rgba(0,255,255,0.7)",
+                  cursor: "pointer",
+                  fontFamily: "'Exo 2', sans-serif",
+                  fontSize: "0.8rem",
+                }}
+              >
+                <Upload size={14} />
+                {bg === "photo" ? "Change Photo" : "Upload from Gallery"}
+              </div>
+            </label>
           </div>
+        </section>
 
-          <div className="p-5 space-y-3">
-            {/* WhatsApp */}
-            <motion.a
+        {/* Contact Us */}
+        <section>
+          <SectionTitle icon={<Phone size={16} />} title="Contact Us" />
+          <div className="glass-card" style={{ overflow: "hidden" }}>
+            <ContactCard
+              icon={<Phone size={18} style={{ color: "#25D366" }} />}
+              label="WhatsApp"
+              value="+91 7309227544"
               href="https://wa.me/917309227544"
-              target="_blank"
-              rel="noopener noreferrer"
-              whileTap={{ scale: 0.97 }}
-              whileHover={{ scale: 1.01 }}
-              data-ocid="settings.contact.whatsapp.button"
-              className="flex items-center gap-4 w-full px-4 py-3 rounded-xl border border-border bg-background hover:border-green-500/40 transition-all group btn-auto-glow-delay-1"
-            >
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all group-hover:scale-110"
-                style={{
-                  background: "oklch(0.55 0.22 145 / 0.15)",
-                  border: "1px solid oklch(0.55 0.22 145 / 0.3)",
-                }}
-              >
-                <MessageCircle
-                  className="w-4 h-4"
-                  style={{ color: "oklch(0.65 0.22 145)" }}
-                />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-semibold text-foreground">
-                  WhatsApp
-                </p>
-                <p className="text-xs text-muted-foreground">+91 7309227544</p>
-              </div>
-              <div className="text-muted-foreground group-hover:text-foreground transition-colors text-xs font-medium">
-                Chat →
-              </div>
-            </motion.a>
-
-            {/* Email */}
-            <motion.a
+              color="#25D366"
+            />
+            <div style={{ borderTop: "1px solid rgba(0,255,255,0.07)" }} />
+            <ContactCard
+              icon={<Mail size={18} style={{ color: "#ea4335" }} />}
+              label="Email"
+              value="mkumargkp111@gmail.com"
               href="mailto:mkumargkp111@gmail.com"
-              whileTap={{ scale: 0.97 }}
-              whileHover={{ scale: 1.01 }}
-              data-ocid="settings.contact.email.button"
-              className="flex items-center gap-4 w-full px-4 py-3 rounded-xl border border-border bg-background hover:border-blue-500/40 transition-all group btn-auto-glow-delay-2"
-            >
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all group-hover:scale-110"
-                style={{
-                  background: "oklch(0.60 0.22 240 / 0.15)",
-                  border: "1px solid oklch(0.60 0.22 240 / 0.3)",
-                }}
-              >
-                <Mail
-                  className="w-4 h-4"
-                  style={{ color: "oklch(0.65 0.22 240)" }}
-                />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-semibold text-foreground">Email</p>
-                <p className="text-xs text-muted-foreground">
-                  mkumargkp111@gmail.com
-                </p>
-              </div>
-              <div className="text-muted-foreground group-hover:text-foreground transition-colors text-xs font-medium">
-                Write →
-              </div>
-            </motion.a>
-
-            {/* Instagram */}
-            <motion.a
+              color="#ea4335"
+            />
+            <div style={{ borderTop: "1px solid rgba(0,255,255,0.07)" }} />
+            <ContactCard
+              icon={<Instagram size={18} style={{ color: "#e1306c" }} />}
+              label="Instagram"
+              value="@er._ankush__singh"
               href="https://www.instagram.com/er._ankush__singh?igsh=MXJoOW5lYzdrbnM2bg=="
-              target="_blank"
-              rel="noopener noreferrer"
-              whileTap={{ scale: 0.97 }}
-              whileHover={{ scale: 1.01 }}
-              data-ocid="settings.contact.instagram.button"
-              className="flex items-center gap-4 w-full px-4 py-3 rounded-xl border border-border bg-background hover:border-pink-500/40 transition-all group btn-auto-glow-delay-3"
-            >
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all group-hover:scale-110"
-                style={{
-                  background: "oklch(0.60 0.28 350 / 0.15)",
-                  border: "1px solid oklch(0.60 0.28 350 / 0.3)",
-                }}
-              >
-                <Instagram
-                  className="w-4 h-4"
-                  style={{ color: "oklch(0.65 0.28 350)" }}
-                />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-semibold text-foreground">
-                  Instagram
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  @er._ankush__singh
-                </p>
-              </div>
-              <div className="text-muted-foreground group-hover:text-foreground transition-colors text-xs font-medium">
-                Follow →
-              </div>
-            </motion.a>
+              color="#e1306c"
+            />
           </div>
-        </motion.section>
-      </main>
-
-      {/* Footer */}
-      <footer className="text-center py-5 px-4 text-xs text-muted-foreground border-t border-border rgb-glow-sm space-y-1">
-        <p className="font-medium text-foreground/70">
-          Made with <span className="text-red-500">♥️</span> by Ankush Singh |
-          Caffeine For Students
-        </p>
-        <p>© 2026 All Rights Reserved</p>
-      </footer>
+        </section>
+      </div>
     </div>
+  );
+}
+
+function SectionTitle({
+  icon,
+  title,
+}: {
+  icon: React.ReactNode;
+  title: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.5rem",
+        marginBottom: "0.5rem",
+        color: "rgba(0,255,255,0.6)",
+      }}
+    >
+      {icon}
+      <span
+        style={{
+          fontFamily: "'Orbitron', sans-serif",
+          fontSize: "0.72rem",
+          letterSpacing: "0.1em",
+          color: "rgba(0,255,255,0.6)",
+        }}
+      >
+        {title.toUpperCase()}
+      </span>
+    </div>
+  );
+}
+
+function ContactCard({
+  icon,
+  label,
+  value,
+  href,
+  color,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  href: string;
+  color: string;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.75rem",
+        padding: "0.9rem 1rem",
+        textDecoration: "none",
+        cursor: "pointer",
+        transition: "background 0.2s ease",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.background =
+          `rgba(${color === "#25D366" ? "37,211,102" : color === "#ea4335" ? "234,67,53" : "225,48,108"},0.08)`;
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.background = "transparent";
+      }}
+    >
+      {icon}
+      <div style={{ flex: 1 }}>
+        <p
+          style={{
+            fontFamily: "'Orbitron', sans-serif",
+            fontSize: "0.72rem",
+            color: "rgba(255,255,255,0.5)",
+            marginBottom: "0.1rem",
+          }}
+        >
+          {label}
+        </p>
+        <p
+          style={{
+            fontFamily: "'Exo 2', sans-serif",
+            fontSize: "0.85rem",
+            color: "rgba(255,255,255,0.85)",
+          }}
+        >
+          {value}
+        </p>
+      </div>
+      <ChevronRight size={16} style={{ color: "rgba(255,255,255,0.2)" }} />
+    </a>
   );
 }
