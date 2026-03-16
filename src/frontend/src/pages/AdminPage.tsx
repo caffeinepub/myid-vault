@@ -13,18 +13,23 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  type AccountRecord,
-  deleteAccount,
-  getAccounts,
-  hashString,
-  setAccountBanned,
-} from "../lib/storage";
+  adminDeleteAccount,
+  adminGetUserIDCount,
+  adminGetUserIDs,
+  adminLoadAccounts,
+  adminResetPassword,
+  adminToggleBan,
+} from "../hooks/usePasswordAuth";
 
 const ADMIN_PASSWORD = "admin@myid2026";
 
 interface UserRow {
-  principal: string;
-  record: AccountRecord;
+  username: string;
+  name: string;
+  securityQuestion: string;
+  banned: boolean;
+  createdAt: number;
+  idCount: number;
 }
 
 export default function AdminPage({ onExit }: { onExit: () => void }) {
@@ -101,26 +106,25 @@ export default function AdminPage({ onExit }: { onExit: () => void }) {
             onKeyDown={(e) => e.key === "Enter" && handleAuth()}
             style={{
               width: "100%",
-              background: "rgba(255,140,0,0.05)",
-              border: authError
-                ? "1px solid rgba(255,80,80,0.5)"
-                : "1px solid rgba(255,140,0,0.3)",
-              borderRadius: "8px",
-              padding: "0.7rem 0.9rem",
+              padding: "0.75rem 1rem",
+              borderRadius: "9px",
+              border: "1.5px solid rgba(255,140,0,0.3)",
+              background: "rgba(20,10,0,0.5)",
               color: "rgba(255,255,255,0.9)",
               fontFamily: "'Exo 2', sans-serif",
-              fontSize: "0.9rem",
+              fontSize: "0.88rem",
               outline: "none",
-              marginBottom: "0.5rem",
+              marginBottom: "0.75rem",
+              boxSizing: "border-box",
             }}
           />
           {authError && (
             <p
               data-ocid="admin.error_state"
               style={{
+                color: "#ff6666",
                 fontFamily: "'Exo 2', sans-serif",
                 fontSize: "0.78rem",
-                color: "rgba(255,80,80,0.8)",
                 marginBottom: "0.75rem",
               }}
             >
@@ -132,21 +136,21 @@ export default function AdminPage({ onExit }: { onExit: () => void }) {
             data-ocid="admin.primary_button"
             onClick={handleAuth}
             disabled={authLoading}
+            className="neon-btn"
             style={{
               width: "100%",
-              padding: "0.75rem",
-              borderRadius: "8px",
+              padding: "0.8rem",
+              borderRadius: "9px",
               border: "1.5px solid rgba(255,140,0,0.5)",
-              background: "rgba(255,140,0,0.12)",
+              background: "rgba(255,140,0,0.08)",
               color: "rgba(255,180,0,0.9)",
               fontFamily: "'Orbitron', sans-serif",
               fontSize: "0.82rem",
-              cursor: "pointer",
+              cursor: authLoading ? "not-allowed" : "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               gap: "0.5rem",
-              letterSpacing: "0.06em",
             }}
           >
             {authLoading ? (
@@ -154,30 +158,10 @@ export default function AdminPage({ onExit }: { onExit: () => void }) {
                 size={16}
                 style={{ animation: "spin 1s linear infinite" }}
               />
-            ) : null}
-            Access Admin Panel
-          </button>
-          <button
-            type="button"
-            onClick={onExit}
-            style={{
-              width: "100%",
-              marginTop: "0.75rem",
-              padding: "0.6rem",
-              borderRadius: "8px",
-              border: "1px solid rgba(255,255,255,0.1)",
-              background: "transparent",
-              color: "rgba(255,255,255,0.4)",
-              fontFamily: "'Exo 2', sans-serif",
-              fontSize: "0.82rem",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "0.4rem",
-            }}
-          >
-            <ArrowLeft size={14} /> Back to App
+            ) : (
+              <Shield size={16} />
+            )}
+            {authLoading ? "Verifying…" : "Access Admin Panel"}
           </button>
         </div>
       </div>
@@ -189,44 +173,61 @@ export default function AdminPage({ onExit }: { onExit: () => void }) {
 
 function AdminDashboard({ onExit }: { onExit: () => void }) {
   const [accounts, setAccounts] = useState<UserRow[]>(() => {
-    const all = getAccounts();
-    return Object.entries(all).map(([principal, record]) => ({
-      principal,
-      record,
+    const all = adminLoadAccounts();
+    return Object.values(all).map((a) => ({
+      username: a.username,
+      name: a.name,
+      securityQuestion: a.securityQuestion,
+      banned: a.banned,
+      createdAt: a.createdAt,
+      idCount: adminGetUserIDCount(a.username),
     }));
   });
 
   const reload = () => {
-    const all = getAccounts();
+    const all = adminLoadAccounts();
     setAccounts(
-      Object.entries(all).map(([principal, record]) => ({ principal, record })),
+      Object.values(all).map((a) => ({
+        username: a.username,
+        name: a.name,
+        securityQuestion: a.securityQuestion,
+        banned: a.banned,
+        createdAt: a.createdAt,
+        idCount: adminGetUserIDCount(a.username),
+      })),
     );
   };
 
-  const totalIDs = accounts.reduce(
-    (sum, u) => sum + (u.record.idCount || 0),
-    0,
-  );
-  const bannedCount = accounts.filter((u) => u.record.banned).length;
+  const totalIDs = accounts.reduce((sum, u) => sum + u.idCount, 0);
+  const bannedCount = accounts.filter((u) => u.banned).length;
 
-  const handleBan = (principal: string, banned: boolean) => {
-    setAccountBanned(principal, banned);
-    toast.success(banned ? "User banned" : "User unbanned");
+  const handleBan = (username: string) => {
+    adminToggleBan(username);
+    const isBanned = adminLoadAccounts()[username]?.banned ?? false;
+    toast.success(isBanned ? "User banned" : "User unbanned");
     reload();
   };
 
-  const handleDelete = (principal: string) => {
+  const handleDelete = (username: string) => {
     if (!confirm("Permanently delete this account and all its data?")) return;
-    deleteAccount(principal);
+    adminDeleteAccount(username);
     toast.success("Account deleted");
     reload();
   };
 
-  const handleResetPassword = (principal: string) => {
-    // For ICP users there's no password, but we can set a note
-    toast.info(
-      `Principal: ${principal.slice(0, 20)}… (ICP auth, no password to reset)`,
-    );
+  const handleResetPassword = async (username: string) => {
+    const newPass = prompt(`Set new password for @${username}:`);
+    if (!newPass) return;
+    if (newPass.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
+    try {
+      await adminResetPassword(username, newPass);
+      toast.success("Password reset successfully");
+    } catch {
+      toast.error("Failed to reset password");
+    }
   };
 
   return (
@@ -261,6 +262,7 @@ function AdminDashboard({ onExit }: { onExit: () => void }) {
         </div>
         <button
           type="button"
+          data-ocid="admin.secondary_button"
           onClick={onExit}
           style={{
             background: "transparent",
@@ -329,7 +331,7 @@ function AdminDashboard({ onExit }: { onExit: () => void }) {
           >
             {accounts.map((user, i) => (
               <UserCard
-                key={user.principal}
+                key={user.username}
                 user={user}
                 index={i}
                 onBan={handleBan}
@@ -395,11 +397,12 @@ function UserCard({
 }: {
   user: UserRow;
   index: number;
-  onBan: (p: string, b: boolean) => void;
-  onDelete: (p: string) => void;
-  onReset: (p: string) => void;
+  onBan: (u: string) => void;
+  onDelete: (u: string) => void;
+  onReset: (u: string) => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const ids = expanded ? adminGetUserIDs(user.username) : [];
 
   return (
     <div
@@ -436,7 +439,7 @@ function UserCard({
               style={{
                 fontFamily: "'Orbitron', sans-serif",
                 fontSize: "0.78rem",
-                color: user.record.banned
+                color: user.banned
                   ? "rgba(255,80,80,0.7)"
                   : "rgba(255,255,255,0.85)",
                 overflow: "hidden",
@@ -445,9 +448,9 @@ function UserCard({
                 margin: 0,
               }}
             >
-              {user.record.name}
+              {user.name}
             </p>
-            {user.record.banned && (
+            {user.banned && (
               <span
                 style={{
                   background: "rgba(255,50,50,0.2)",
@@ -475,7 +478,7 @@ function UserCard({
               margin: 0,
             }}
           >
-            {user.principal.slice(0, 24)}…
+            @{user.username}
           </p>
         </div>
         <div
@@ -493,7 +496,7 @@ function UserCard({
               color: "rgba(123,0,255,0.7)",
             }}
           >
-            {user.record.idCount || 0} IDs
+            {user.idCount} IDs
           </span>
           {expanded ? (
             <ChevronDown size={16} style={{ color: "rgba(0,255,255,0.4)" }} />
@@ -509,93 +512,138 @@ function UserCard({
           style={{
             borderTop: "1px solid rgba(0,255,255,0.08)",
             padding: "0.75rem 1rem",
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.5rem",
           }}
         >
-          <div
-            style={{
-              fontFamily: "'Exo 2', sans-serif",
-              fontSize: "0.72rem",
-              color: "rgba(255,255,255,0.35)",
-              marginBottom: "0.25rem",
-            }}
-          >
-            Joined: {new Date(user.record.createdAt).toLocaleDateString()}
-            {" · "}
-            Recovery Q: {user.record.hasSecurityQuestion ? "✅" : "❌"}
+          {/* IDs */}
+          {ids.length > 0 && (
+            <div style={{ marginBottom: "0.75rem" }}>
+              <p
+                style={{
+                  fontFamily: "'Exo 2', sans-serif",
+                  fontSize: "0.7rem",
+                  color: "rgba(255,255,255,0.3)",
+                  marginBottom: "0.4rem",
+                }}
+              >
+                Stored IDs:
+              </p>
+              {ids.map((id, j) => (
+                <div
+                  key={`${id.cardType.__kind__}-${j}`}
+                  style={{
+                    fontFamily: "'Exo 2', sans-serif",
+                    fontSize: "0.72rem",
+                    color: "rgba(0,255,255,0.5)",
+                    padding: "0.2rem 0",
+                    borderBottom:
+                      j < ids.length - 1
+                        ? "1px solid rgba(255,255,255,0.05)"
+                        : "none",
+                  }}
+                >
+                  {id.cardType.__kind__ === "collegeStudent"
+                    ? id.cardType.collegeStudent.fullName
+                    : id.cardType.other.fullName}{" "}
+                  — {id.cardType.__kind__}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Info */}
+          <div style={{ marginBottom: "0.75rem" }}>
+            <p
+              style={{
+                fontFamily: "'Exo 2', sans-serif",
+                fontSize: "0.68rem",
+                color: "rgba(255,255,255,0.25)",
+              }}
+            >
+              Security Q: {user.securityQuestion || "Not set"}
+            </p>
+            <p
+              style={{
+                fontFamily: "'Exo 2', sans-serif",
+                fontSize: "0.68rem",
+                color: "rgba(255,255,255,0.25)",
+              }}
+            >
+              Joined: {new Date(user.createdAt).toLocaleDateString()}
+            </p>
           </div>
+
+          {/* Actions */}
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            <ActionBtn
-              icon={<KeyRound size={13} />}
-              label="Reset Auth"
-              color="rgba(0,200,255,0.7)"
-              borderColor="rgba(0,200,255,0.25)"
-              onClick={() => onReset(user.principal)}
-            />
-            <ActionBtn
-              icon={<Ban size={13} />}
-              label={user.record.banned ? "Unban" : "Ban User"}
-              color={
-                user.record.banned
-                  ? "rgba(0,255,170,0.7)"
-                  : "rgba(255,180,0,0.7)"
-              }
-              borderColor={
-                user.record.banned
-                  ? "rgba(0,255,170,0.25)"
-                  : "rgba(255,180,0,0.25)"
-              }
-              onClick={() => onBan(user.principal, !user.record.banned)}
-            />
-            <ActionBtn
-              icon={<Trash2 size={13} />}
-              label="Delete"
-              color="rgba(255,80,80,0.7)"
-              borderColor="rgba(255,80,80,0.25)"
-              onClick={() => onDelete(user.principal)}
-            />
+            <button
+              type="button"
+              data-ocid={`admin.toggle.${index + 1}`}
+              onClick={() => onBan(user.username)}
+              style={{
+                padding: "0.4rem 0.75rem",
+                borderRadius: "6px",
+                border: `1px solid ${user.banned ? "rgba(0,255,100,0.4)" : "rgba(255,80,80,0.4)"}`,
+                background: user.banned
+                  ? "rgba(0,255,100,0.08)"
+                  : "rgba(255,80,80,0.08)",
+                color: user.banned
+                  ? "rgba(0,255,100,0.8)"
+                  : "rgba(255,80,80,0.8)",
+                fontFamily: "'Exo 2', sans-serif",
+                fontSize: "0.72rem",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.3rem",
+              }}
+            >
+              <Ban size={12} />
+              {user.banned ? "Unban" : "Ban"}
+            </button>
+            <button
+              type="button"
+              data-ocid={`admin.edit_button.${index + 1}`}
+              onClick={() => onReset(user.username)}
+              style={{
+                padding: "0.4rem 0.75rem",
+                borderRadius: "6px",
+                border: "1px solid rgba(0,200,255,0.3)",
+                background: "rgba(0,200,255,0.06)",
+                color: "rgba(0,200,255,0.8)",
+                fontFamily: "'Exo 2', sans-serif",
+                fontSize: "0.72rem",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.3rem",
+              }}
+            >
+              <KeyRound size={12} />
+              Reset Password
+            </button>
+            <button
+              type="button"
+              data-ocid={`admin.delete_button.${index + 1}`}
+              onClick={() => onDelete(user.username)}
+              style={{
+                padding: "0.4rem 0.75rem",
+                borderRadius: "6px",
+                border: "1px solid rgba(255,50,50,0.3)",
+                background: "rgba(255,50,50,0.07)",
+                color: "rgba(255,80,80,0.8)",
+                fontFamily: "'Exo 2', sans-serif",
+                fontSize: "0.72rem",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.3rem",
+              }}
+            >
+              <Trash2 size={12} />
+              Delete
+            </button>
           </div>
         </div>
       )}
     </div>
-  );
-}
-
-function ActionBtn({
-  icon,
-  label,
-  color,
-  borderColor,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  color: string;
-  borderColor: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="neon-btn"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "0.35rem",
-        padding: "0.4rem 0.75rem",
-        borderRadius: "6px",
-        border: `1px solid ${borderColor}`,
-        background: "transparent",
-        color,
-        fontFamily: "'Exo 2', sans-serif",
-        fontSize: "0.75rem",
-        cursor: "pointer",
-      }}
-    >
-      {icon} {label}
-    </button>
   );
 }

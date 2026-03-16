@@ -14,11 +14,13 @@ import {
   Settings,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AppPage } from "../App";
 import type { IDCard } from "../backend";
+import GuestBanner from "../components/GuestBanner";
 import { useGetAllCards } from "../hooks/useQueries";
 import { useGetProfile } from "../hooks/useQueries";
+import { getGuestCards } from "../lib/guestStorage";
 import { getSecurityQuestion } from "../lib/storage";
 
 const BRANDING_FOOTER = (
@@ -224,22 +226,48 @@ export default function HomePage({
   navigate,
   principalText,
   onLogout,
+  isGuest,
 }: {
   navigate: (p: AppPage) => void;
   principalText: string;
   onLogout: () => void;
+  isGuest?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [guestCards, setGuestCards] = useState<IDCard[]>([]);
 
-  const { data: cards, isLoading } = useGetAllCards();
+  // Backend cards (only used when not in guest mode)
+  const { data: backendCards, isLoading } = useGetAllCards();
   const { data: profile } = useGetProfile();
 
-  const userName = profile?.name || "User";
-  const hasSecQ = !!getSecurityQuestion(principalText);
-  const showBanner = !hasSecQ && !bannerDismissed;
+  // Load guest cards from localStorage
+  useEffect(() => {
+    if (!isGuest) return;
+    setGuestCards(getGuestCards());
+  }, [isGuest]);
 
-  const filtered = (cards || []).filter((c) => {
+  // Refresh guest cards when navigating back (listen to storage events)
+  useEffect(() => {
+    if (!isGuest) return;
+    const refresh = () => setGuestCards(getGuestCards());
+    window.addEventListener("storage", refresh);
+    // Also poll on focus since storage events don't fire in the same tab
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [isGuest]);
+
+  const userName = isGuest ? "Guest" : profile?.name || "User";
+  const hasSecQ = isGuest ? true : !!getSecurityQuestion(principalText);
+  const showBanner = !isGuest && !hasSecQ && !bannerDismissed;
+
+  const cards = isGuest ? guestCards : backendCards || [];
+  const cardsLoading = !isGuest && isLoading;
+
+  const filtered = cards.filter((c) => {
     if (!search) return true;
     const info = getCardInfo(c);
     const q = search.toLowerCase();
@@ -249,6 +277,11 @@ export default function HomePage({
       info.idNumber.toLowerCase().includes(q)
     );
   });
+
+  const handleGuestClearData = () => {
+    localStorage.removeItem("myid_guest_cards");
+    window.location.reload();
+  };
 
   return (
     <div
@@ -276,29 +309,31 @@ export default function HomePage({
             style={{
               fontFamily: "'Exo 2', sans-serif",
               fontSize: "0.78rem",
-              color: "rgba(0,255,255,0.5)",
+              color: isGuest ? "rgba(255,180,0,0.6)" : "rgba(0,255,255,0.5)",
             }}
           >
             {userName}
           </span>
-          <button
-            type="button"
-            data-ocid="home.settings_button"
-            onClick={() => navigate({ type: "settings" })}
-            className="neon-btn"
-            style={{
-              background: "transparent",
-              border: "1px solid rgba(0,255,255,0.25)",
-              borderRadius: "8px",
-              padding: "0.45rem",
-              color: "rgba(0,255,255,0.7)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            <Settings size={18} />
-          </button>
+          {!isGuest && (
+            <button
+              type="button"
+              data-ocid="home.settings_button"
+              onClick={() => navigate({ type: "settings" })}
+              className="neon-btn"
+              style={{
+                background: "transparent",
+                border: "1px solid rgba(0,255,255,0.25)",
+                borderRadius: "8px",
+                padding: "0.45rem",
+                color: "rgba(0,255,255,0.7)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <Settings size={18} />
+            </button>
+          )}
           <button
             type="button"
             data-ocid="home.logout_button"
@@ -306,10 +341,12 @@ export default function HomePage({
             className="neon-btn"
             style={{
               background: "transparent",
-              border: "1px solid rgba(255,100,100,0.25)",
+              border: isGuest
+                ? "1px solid rgba(255,180,0,0.3)"
+                : "1px solid rgba(255,100,100,0.25)",
               borderRadius: "8px",
               padding: "0.45rem",
-              color: "rgba(255,100,100,0.7)",
+              color: isGuest ? "rgba(255,180,0,0.7)" : "rgba(255,100,100,0.7)",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -320,7 +357,12 @@ export default function HomePage({
         </div>
       </header>
 
-      {/* Amber banner */}
+      {/* Guest Banner */}
+      {isGuest && (
+        <GuestBanner onLogin={onLogout} onClearData={handleGuestClearData} />
+      )}
+
+      {/* Amber security question banner */}
       {showBanner && (
         <div
           style={{
@@ -426,7 +468,7 @@ export default function HomePage({
 
       {/* Content */}
       <div style={{ flex: 1, padding: "0 1.25rem" }}>
-        {isLoading ? (
+        {cardsLoading ? (
           <div
             style={{
               display: "grid",
@@ -457,20 +499,22 @@ export default function HomePage({
                 animation: "particleFloat 3s ease-in-out infinite",
               }}
             >
-              📲
+              {isGuest ? "👤" : "📲"}
             </div>
             <p
               style={{
                 fontFamily: "'Orbitron', sans-serif",
                 fontSize: "0.9rem",
-                color: "rgba(0,255,255,0.6)",
+                color: isGuest ? "rgba(255,180,0,0.6)" : "rgba(0,255,255,0.6)",
                 maxWidth: "240px",
                 lineHeight: 1.5,
               }}
             >
               {search
                 ? "No IDs match your search."
-                : "No IDs yet. Tap + to add your first ID card."}
+                : isGuest
+                  ? "Guest vault is empty. Tap + to add your first ID locally."
+                  : "No IDs yet. Tap + to add your first ID card."}
             </p>
           </div>
         ) : (
@@ -508,19 +552,24 @@ export default function HomePage({
           width: "56px",
           height: "56px",
           borderRadius: "50%",
-          background:
-            "linear-gradient(135deg, rgba(0,255,255,0.2), rgba(123,0,255,0.2))",
-          border: "1.5px solid rgba(0,255,255,0.5)",
-          color: "#00ffff",
+          background: isGuest
+            ? "linear-gradient(135deg, rgba(255,180,0,0.2), rgba(255,100,0,0.15))"
+            : "linear-gradient(135deg, rgba(0,255,255,0.2), rgba(123,0,255,0.2))",
+          border: isGuest
+            ? "1.5px solid rgba(255,180,0,0.5)"
+            : "1.5px solid rgba(0,255,255,0.5)",
+          color: isGuest ? "#ffb400" : "#00ffff",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
           zIndex: 20,
-          boxShadow: "0 4px 20px rgba(0,255,255,0.2)",
+          boxShadow: isGuest
+            ? "0 4px 20px rgba(255,180,0,0.2)"
+            : "0 4px 20px rgba(0,255,255,0.2)",
         }}
       >
-        {isLoading ? (
+        {cardsLoading ? (
           <Loader2 size={22} style={{ animation: "spin 1s linear infinite" }} />
         ) : (
           <Plus size={26} />

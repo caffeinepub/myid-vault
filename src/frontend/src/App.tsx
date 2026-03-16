@@ -3,8 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import AppBackground from "./components/AppBackground";
-import { useInternetIdentity } from "./hooks/useInternetIdentity";
-import { isAccountBanned, registerAccount } from "./lib/storage";
+import { usePasswordAuth } from "./hooks/usePasswordAuth";
+import { isAccountBanned } from "./lib/storage";
 import AddCardPage from "./pages/AddCardPage";
 import AdminPage from "./pages/AdminPage";
 import CardViewerPage from "./pages/CardViewerPage";
@@ -105,9 +105,11 @@ function PageTransition({
 function AuthenticatedApp({
   principalText,
   onLogout,
+  isGuest,
 }: {
   principalText: string;
   onLogout: () => void;
+  isGuest?: boolean;
 }) {
   const [page, setPage] = useState<AppPage>({ type: "home" });
   const queryClient = useQueryClient();
@@ -142,22 +144,31 @@ function AuthenticatedApp({
                 navigate={navigate}
                 principalText={principalText}
                 onLogout={handleLogout}
+                isGuest={isGuest}
               />
             </PageTransition>
           )}
           {page.type === "view" && (
             <PageTransition pageKey={pageKey}>
-              <CardViewerPage cardId={page.cardId} navigate={navigate} />
+              <CardViewerPage
+                cardId={page.cardId}
+                navigate={navigate}
+                isGuest={isGuest}
+              />
             </PageTransition>
           )}
           {page.type === "add" && (
             <PageTransition pageKey={pageKey}>
-              <AddCardPage navigate={navigate} />
+              <AddCardPage navigate={navigate} isGuest={isGuest} />
             </PageTransition>
           )}
           {page.type === "edit" && (
             <PageTransition pageKey={pageKey}>
-              <AddCardPage navigate={navigate} editCardId={page.cardId} />
+              <AddCardPage
+                navigate={navigate}
+                editCardId={page.cardId}
+                isGuest={isGuest}
+              />
             </PageTransition>
           )}
           {page.type === "settings" && (
@@ -172,16 +183,17 @@ function AuthenticatedApp({
 }
 
 export default function App() {
-  const { identity, clear, isInitializing } = useInternetIdentity();
+  const { user, login, signUp, logout, isInitializing } = usePasswordAuth();
   const [isAdminRoute, setIsAdminRoute] = useState(
     () => window.location.hash === "#admin",
   );
   const [showSplash, setShowSplash] = useState(false);
   const [splashName, setSplashName] = useState("User");
+  const [guestMode, setGuestMode] = useState(false);
   const prevLoggedIn = useRef(false);
 
-  const isLoggedIn = !!identity && !identity.getPrincipal().isAnonymous();
-  const principalText = identity?.getPrincipal().toText() ?? "";
+  const isLoggedIn = !!user;
+  const principalText = user?.username ?? "";
   const isBanned = isLoggedIn && isAccountBanned(principalText);
 
   useEffect(() => {
@@ -191,13 +203,27 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isLoggedIn && !prevLoggedIn.current && principalText) {
-      const account = registerAccount(principalText, "User");
-      setSplashName(account.name);
+    if (isLoggedIn && !prevLoggedIn.current && user) {
+      setSplashName(user.name || user.username);
       setShowSplash(true);
+      setGuestMode(false);
     }
     prevLoggedIn.current = isLoggedIn;
-  }, [isLoggedIn, principalText]);
+  }, [isLoggedIn, user]);
+
+  const handleLogin = async (username: string, password: string) => {
+    await login(username, password);
+  };
+
+  const handleSignUp = async (
+    name: string,
+    username: string,
+    password: string,
+    securityQuestion: string,
+    securityAnswer: string,
+  ) => {
+    await signUp(name, username, password, securityQuestion, securityAnswer);
+  };
 
   if (isAdminRoute) {
     return (
@@ -266,7 +292,7 @@ export default function App() {
           </p>
           <button
             type="button"
-            onClick={() => clear()}
+            onClick={() => logout()}
             style={{
               marginTop: "1.5rem",
               padding: "0.5rem 1.5rem",
@@ -285,14 +311,32 @@ export default function App() {
     );
   }
 
-  if (!isLoggedIn) {
+  if (!isLoggedIn && !guestMode) {
     return (
       <div style={{ position: "relative", minHeight: "100dvh" }}>
         <AppBackground />
         <div style={{ position: "relative", zIndex: 1 }}>
           <Toaster position="top-center" richColors />
-          <LoginPage />
+          <LoginPage
+            onGuestLogin={() => setGuestMode(true)}
+            onLogin={handleLogin}
+            onSignUp={handleSignUp}
+          />
         </div>
+      </div>
+    );
+  }
+
+  if (guestMode) {
+    return (
+      <div style={{ position: "relative", minHeight: "100dvh" }}>
+        <AppBackground />
+        <Toaster position="top-center" richColors />
+        <AuthenticatedApp
+          principalText="guest"
+          onLogout={() => setGuestMode(false)}
+          isGuest={true}
+        />
       </div>
     );
   }
@@ -309,7 +353,7 @@ export default function App() {
       {!showSplash && (
         <AuthenticatedApp
           principalText={principalText}
-          onLogout={() => clear()}
+          onLogout={() => logout()}
         />
       )}
     </div>

@@ -5,14 +5,12 @@ const SESSION_KEY = "myid-vault-session";
 const SETTINGS_KEY_PREFIX = "myid-vault-settings-";
 
 export interface AuthUser {
-  email: string;
+  username: string;
   name: string;
-  username: string; // = email, kept for useLocalIDStore backward compat
 }
 
 interface StoredAccount {
-  email: string;
-  username: string; // = email
+  username: string;
   passwordHash: string;
   name: string;
   securityQuestion: string;
@@ -119,19 +117,7 @@ export function usePasswordAuth() {
   useEffect(() => {
     const session = loadSession();
     if (session) {
-      // Normalize: ensure username = email
-      const normalized: AuthUser = {
-        email:
-          session.email ??
-          (session as unknown as { username?: string }).username ??
-          "",
-        name: session.name,
-        username:
-          session.email ??
-          (session as unknown as { username?: string }).username ??
-          "",
-      };
-      setUser(normalized);
+      setUser(session);
     }
     setAppInitializing(false);
   }, []);
@@ -139,20 +125,20 @@ export function usePasswordAuth() {
   const hasSecurityQuestion = (() => {
     if (!user) return false;
     const accounts = loadAccounts();
-    const account = accounts[user.email];
+    const account = accounts[user.username];
     return !!(
       account?.securityQuestion && account.securityQuestion.trim() !== ""
     );
   })();
 
   const users: Array<{
-    email: string;
+    username: string;
     name: string;
     securityQuestion: string;
     banned: boolean;
     createdAt: number;
   }> = Object.values(loadAccounts()).map((a) => ({
-    email: a.email,
+    username: a.username,
     name: a.name,
     securityQuestion: a.securityQuestion ?? "",
     banned: a.banned ?? false,
@@ -162,22 +148,21 @@ export function usePasswordAuth() {
   const signUp = useCallback(
     async (
       name: string,
-      email: string,
+      username: string,
       password: string,
       securityQuestion: string,
       securityAnswer: string,
     ): Promise<void> => {
       const accounts = loadAccounts();
-      const key = email.toLowerCase().trim();
+      const key = username.toLowerCase().trim();
       if (accounts[key]) {
-        throw new Error("An account with this email already exists.");
+        throw new Error("An account with this username already exists.");
       }
       const passwordHash = await hashPassword(password);
       const securityAnswerHash = await hashPassword(
         securityAnswer.toLowerCase().trim(),
       );
       const account: StoredAccount = {
-        email: key,
         username: key,
         passwordHash,
         name: name.trim(),
@@ -189,11 +174,7 @@ export function usePasswordAuth() {
       accounts[key] = account;
       saveAccounts(accounts);
 
-      const newUser: AuthUser = {
-        email: key,
-        name: name.trim(),
-        username: key,
-      };
+      const newUser: AuthUser = { username: key, name: name.trim() };
       saveSession(newUser);
       setUser(newUser);
     },
@@ -201,12 +182,12 @@ export function usePasswordAuth() {
   );
 
   const login = useCallback(
-    async (email: string, password: string): Promise<void> => {
+    async (username: string, password: string): Promise<void> => {
       const accounts = loadAccounts();
-      const key = email.toLowerCase().trim();
+      const key = username.toLowerCase().trim();
       const account = accounts[key];
       if (!account) {
-        throw new Error("No account found with this email address.");
+        throw new Error("No account found with this username.");
       }
       if (account.banned) {
         throw new Error(
@@ -217,11 +198,7 @@ export function usePasswordAuth() {
       if (passwordHash !== account.passwordHash) {
         throw new Error("Incorrect password. Please try again.");
       }
-      const sessionUser: AuthUser = {
-        email: key,
-        name: account.name,
-        username: key,
-      };
+      const sessionUser: AuthUser = { username: key, name: account.name };
       const settings = loadSettings(key);
       saveSession(sessionUser, settings.autoLock);
       setUser(sessionUser);
@@ -234,12 +211,12 @@ export function usePasswordAuth() {
     setUser(null);
   }, []);
 
-  const getSecurityQuestion = useCallback((email: string): string => {
+  const getSecurityQuestion = useCallback((username: string): string => {
     const accounts = loadAccounts();
-    const key = email.toLowerCase().trim();
+    const key = username.toLowerCase().trim();
     const account = accounts[key];
     if (!account) {
-      throw new Error("No account found with this email address.");
+      throw new Error("No account found with this username.");
     }
     if (!account.securityQuestion) {
       throw new Error("This account does not have a security question set up.");
@@ -249,15 +226,15 @@ export function usePasswordAuth() {
 
   const resetPassword = useCallback(
     async (
-      email: string,
+      username: string,
       securityAnswer: string,
       newPassword: string,
     ): Promise<void> => {
       const accounts = loadAccounts();
-      const key = email.toLowerCase().trim();
+      const key = username.toLowerCase().trim();
       const account = accounts[key];
       if (!account) {
-        throw new Error("No account found with this email address.");
+        throw new Error("No account found with this username.");
       }
       const answerHash = await hashPassword(
         securityAnswer.toLowerCase().trim(),
@@ -268,12 +245,7 @@ export function usePasswordAuth() {
       const newPasswordHash = await hashPassword(newPassword);
       accounts[key] = { ...account, passwordHash: newPasswordHash };
       saveAccounts(accounts);
-      // Auto-login after reset
-      const sessionUser: AuthUser = {
-        email: key,
-        name: account.name,
-        username: key,
-      };
+      const sessionUser: AuthUser = { username: key, name: account.name };
       saveSession(sessionUser);
       setUser(sessionUser);
     },
@@ -288,14 +260,14 @@ export function usePasswordAuth() {
     ): Promise<void> => {
       if (!user) throw new Error("Not logged in.");
       const accounts = loadAccounts();
-      const account = accounts[user.email];
+      const account = accounts[user.username];
       if (!account) throw new Error("Account not found.");
       const passwordHash = await hashPassword(currentPassword);
       if (passwordHash !== account.passwordHash) {
         throw new Error("Incorrect current password.");
       }
       const newAnswerHash = await hashPassword(newAnswer.toLowerCase().trim());
-      accounts[user.email] = {
+      accounts[user.username] = {
         ...account,
         securityQuestion: newQuestion,
         securityAnswerHash: newAnswerHash,
@@ -310,12 +282,11 @@ export function usePasswordAuth() {
     (newName: string): void => {
       if (!user) return;
       const accounts = loadAccounts();
-      const account = accounts[user.email];
+      const account = accounts[user.username];
       if (!account) return;
-      accounts[user.email] = { ...account, name: newName.trim() };
+      accounts[user.username] = { ...account, name: newName.trim() };
       saveAccounts(accounts);
       const updatedUser: AuthUser = { ...user, name: newName.trim() };
-      // Update session
       const raw = localStorage.getItem(SESSION_KEY);
       if (raw) {
         saveSession(updatedUser);
@@ -334,15 +305,15 @@ export function usePasswordAuth() {
         autoLock: false,
         background: { type: "preset", value: "aurora" },
       };
-    return loadSettings(user.email);
+    return loadSettings(user.username);
   }, [user]);
 
   const updateSettings = useCallback(
     (settings: Partial<UserSettings>): void => {
       if (!user) return;
-      const current = loadSettings(user.email);
+      const current = loadSettings(user.username);
       const merged: UserSettings = { ...current, ...settings };
-      saveSettings(user.email, merged);
+      saveSettings(user.username, merged);
     },
     [user],
   );
@@ -362,25 +333,20 @@ export function usePasswordAuth() {
     updateDisplayName,
     getSettings,
     updateSettings,
-    // Legacy alias
     loginWithPassword: login,
     updateSecurityQuestion: changeSecurityQuestion,
-    currentUser: user ? { name: user.name, email: user.email } : null,
+    currentUser: user ? { name: user.name, username: user.username } : null,
   };
 }
 
 // ─────────────────────────────────────────────────────────
-// Admin helper functions (standalone, not inside the hook)
+// Admin helper functions
 // ─────────────────────────────────────────────────────────
-
-const ADMIN_SESSION_KEY = "myid-vault-admin-session";
-void ADMIN_SESSION_KEY;
 
 export function adminLoadAccounts(): Record<
   string,
   {
     username: string;
-    email: string;
     name: string;
     securityQuestion: string;
     banned: boolean;
@@ -395,7 +361,6 @@ export function adminLoadAccounts(): Record<
       string,
       {
         username: string;
-        email: string;
         name: string;
         securityQuestion: string;
         banned: boolean;
@@ -404,8 +369,7 @@ export function adminLoadAccounts(): Record<
     > = {};
     for (const [k, v] of Object.entries(all)) {
       result[k] = {
-        username: v.username ?? v.email ?? k,
-        email: v.email ?? v.username ?? k,
+        username: v.username ?? k,
         name: v.name,
         securityQuestion: v.securityQuestion || "",
         banned: v.banned ?? false,
@@ -418,9 +382,9 @@ export function adminLoadAccounts(): Record<
   }
 }
 
-export function adminGetUserIDCount(email: string): number {
+export function adminGetUserIDCount(username: string): number {
   try {
-    const raw = localStorage.getItem(`myid-vault-ids-${email}`);
+    const raw = localStorage.getItem(`myid-vault-ids-${username}`);
     if (!raw) return 0;
     const cards = JSON.parse(raw) as unknown[];
     return Array.isArray(cards) ? cards.length : 0;
@@ -430,10 +394,10 @@ export function adminGetUserIDCount(email: string): number {
 }
 
 export function adminGetUserIDs(
-  email: string,
+  username: string,
 ): import("./useLocalIDStore").LocalIDCard[] {
   try {
-    const raw = localStorage.getItem(`myid-vault-ids-${email}`);
+    const raw = localStorage.getItem(`myid-vault-ids-${username}`);
     if (!raw) return [];
     return JSON.parse(raw) as import("./useLocalIDStore").LocalIDCard[];
   } catch {
@@ -441,7 +405,7 @@ export function adminGetUserIDs(
   }
 }
 
-export function adminDeleteAccount(email: string): void {
+export function adminDeleteAccount(username: string): void {
   const accounts = (() => {
     try {
       const r = localStorage.getItem(ACCOUNTS_KEY);
@@ -450,14 +414,14 @@ export function adminDeleteAccount(email: string): void {
       return {};
     }
   })();
-  delete accounts[email];
+  delete accounts[username];
   localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-  localStorage.removeItem(`myid-vault-ids-${email}`);
-  localStorage.removeItem(`myid-vault-settings-${email}`);
+  localStorage.removeItem(`myid-vault-ids-${username}`);
+  localStorage.removeItem(`myid-vault-settings-${username}`);
 }
 
 export function adminResetPassword(
-  email: string,
+  username: string,
   newPassword: string,
 ): Promise<void> {
   return (async () => {
@@ -471,36 +435,34 @@ export function adminResetPassword(
         return {} as Record<string, StoredAccount>;
       }
     })();
-    if (!accounts[email]) throw new Error("User not found");
+    if (!accounts[username]) throw new Error("User not found");
     const enc = new TextEncoder();
     const buf = await crypto.subtle.digest("SHA-256", enc.encode(newPassword));
     const hash = Array.from(new Uint8Array(buf))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
-    accounts[email] = { ...accounts[email], passwordHash: hash };
+    accounts[username] = { ...accounts[username], passwordHash: hash };
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
   })();
 }
 
-export function adminGetBanned(): string[] {
-  try {
-    const r = localStorage.getItem("myid-vault-banned");
-    return r ? (JSON.parse(r) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function adminToggleBan(email: string): boolean {
-  const banned = adminGetBanned();
-  const idx = banned.indexOf(email);
-  if (idx >= 0) {
-    banned.splice(idx, 1);
-  } else {
-    banned.push(email);
-  }
-  localStorage.setItem("myid-vault-banned", JSON.stringify(banned));
-  return banned.includes(email);
+export function adminToggleBan(username: string): void {
+  const accounts = (() => {
+    try {
+      const r = localStorage.getItem(ACCOUNTS_KEY);
+      return r
+        ? (JSON.parse(r) as Record<string, StoredAccount>)
+        : ({} as Record<string, StoredAccount>);
+    } catch {
+      return {} as Record<string, StoredAccount>;
+    }
+  })();
+  if (!accounts[username]) return;
+  accounts[username] = {
+    ...accounts[username],
+    banned: !accounts[username].banned,
+  };
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
 }
 
 export function adminSaveSession(): void {

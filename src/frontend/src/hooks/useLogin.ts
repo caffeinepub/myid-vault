@@ -6,7 +6,7 @@ export function useLogin() {
     isLoggedIn: auth.isLoggedIn,
     login: auth.login,
     logout: auth.logout,
-    principal: auth.user?.email ?? null,
+    principal: auth.user?.username ?? null,
     isInitializing: auth.isInitializing,
     loginStatus: auth.isLoggedIn ? "success" : "idle",
     currentUser: auth.currentUser,

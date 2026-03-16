@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import type { AppPage } from "../App";
 import type { IDCard } from "../backend";
 import { useDeleteCard, useGetCard } from "../hooks/useQueries";
+import { deleteGuestCard, getGuestCard } from "../lib/guestStorage";
 
 function getCardDetails(card: IDCard) {
   if (card.cardType.__kind__ === "collegeStudent") {
@@ -114,18 +115,34 @@ function getCardDetails(card: IDCard) {
 export default function CardViewerPage({
   cardId,
   navigate,
+  isGuest,
 }: {
   cardId: string;
   navigate: (p: AppPage) => void;
+  isGuest?: boolean;
 }) {
-  const { data: card, isLoading } = useGetCard(cardId);
-  const deleteCard = useDeleteCard();
+  // Backend card loading (only when not in guest mode)
+  const { data: backendCard, isLoading: backendLoading } = useGetCard(
+    !isGuest ? cardId : "",
+  );
+  const deleteCardMutation = useDeleteCard();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Resolve card based on mode
+  const card: IDCard | undefined | null = isGuest
+    ? getGuestCard(cardId)
+    : backendCard;
+  const isLoading = !isGuest && backendLoading;
 
   const handleDelete = async () => {
     try {
-      await deleteCard.mutateAsync(cardId);
-      toast.success("ID deleted");
+      if (isGuest) {
+        deleteGuestCard(cardId);
+        toast.success("ID deleted");
+      } else {
+        await deleteCardMutation.mutateAsync(cardId);
+        toast.success("ID deleted");
+      }
       navigate({ type: "home" });
     } catch {
       toast.error("Failed to delete");
@@ -312,9 +329,35 @@ export default function CardViewerPage({
             </div>
           )}
 
+          {/* Guest badge */}
+          {isGuest && (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.3rem",
+                background: "rgba(255,180,0,0.1)",
+                border: "1px solid rgba(255,180,0,0.3)",
+                borderRadius: "6px",
+                padding: "0.15rem 0.5rem",
+                marginBottom: "0.85rem",
+                fontSize: "0.65rem",
+                fontFamily: "'Orbitron', sans-serif",
+                color: "rgba(255,180,0,0.8)",
+                letterSpacing: "0.06em",
+              }}
+            >
+              👤 GUEST LOCAL
+            </div>
+          )}
+
           {/* Fields */}
           <div
-            style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.9rem",
+            }}
           >
             {details.fields.map((field) => (
               <div
@@ -416,8 +459,9 @@ export default function CardViewerPage({
                   marginBottom: "1.5rem",
                 }}
               >
-                This action cannot be undone. The ID card will be permanently
-                removed from your vault.
+                {isGuest
+                  ? "This will remove the ID from local storage on this device."
+                  : "This action cannot be undone. The ID card will be permanently removed from your vault."}
               </p>
               <div style={{ display: "flex", gap: "0.75rem" }}>
                 <button
@@ -443,7 +487,7 @@ export default function CardViewerPage({
                   type="button"
                   data-ocid="viewer.confirm_button"
                   onClick={handleDelete}
-                  disabled={deleteCard.isPending}
+                  disabled={deleteCardMutation.isPending}
                   className="neon-btn"
                   style={{
                     flex: 1,
@@ -461,7 +505,7 @@ export default function CardViewerPage({
                     gap: "0.4rem",
                   }}
                 >
-                  {deleteCard.isPending ? (
+                  {deleteCardMutation.isPending ? (
                     <Loader2
                       size={14}
                       style={{ animation: "spin 1s linear infinite" }}

@@ -10,6 +10,11 @@ import {
   useGetCard,
   useUpdateCard,
 } from "../hooks/useQueries";
+import {
+  deleteGuestCard,
+  getGuestCard,
+  saveGuestCard,
+} from "../lib/guestStorage";
 
 type IDCategory =
   | "aadhaar"
@@ -108,13 +113,17 @@ const EMPTY_PHOTO_URL =
 export default function AddCardPage({
   navigate,
   editCardId,
+  isGuest,
 }: {
   navigate: (p: AppPage) => void;
   editCardId?: string;
+  isGuest?: boolean;
 }) {
   const isEditing = !!editCardId;
-  const { data: editCard, isLoading: cardLoading } = useGetCard(
-    editCardId || "",
+
+  // Backend card data (only when not in guest mode)
+  const { data: backendEditCard, isLoading: backendCardLoading } = useGetCard(
+    !isGuest && editCardId ? editCardId : "",
   );
 
   const [category, setCategory] = useState<IDCategory>("aadhaar");
@@ -122,14 +131,24 @@ export default function AddCardPage({
   const [photoPreview, setPhotoPreview] = useState<string>("");
   const [photoBlob, setPhotoBlob] = useState<ExternalBlob | null>(null);
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+  const [isSavingGuest, setIsSavingGuest] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const createCollege = useCreateCollegeID();
   const createOther = useCreateOtherID();
   const updateCard = useUpdateCard();
 
-  const isSaving =
-    createCollege.isPending || createOther.isPending || updateCard.isPending;
+  const isSaving = isGuest
+    ? isSavingGuest
+    : createCollege.isPending || createOther.isPending || updateCard.isPending;
+
+  // Determine which card to edit
+  const editCard = isGuest
+    ? editCardId
+      ? getGuestCard(editCardId)
+      : null
+    : backendEditCard;
+  const cardLoading = !isGuest && backendCardLoading;
 
   // Populate form when editing
   useEffect(() => {
@@ -233,6 +252,63 @@ export default function AddCardPage({
       const id = editCardId || crypto.randomUUID();
       const photo = getPhoto();
 
+      if (isGuest) {
+        // Save to localStorage
+        setIsSavingGuest(true);
+        const timestamp = BigInt(Date.now());
+        if (category === "college" || category === "school") {
+          saveGuestCard({
+            id,
+            timestamp,
+            cardType: {
+              __kind__: "collegeStudent",
+              collegeStudent: {
+                branch: f.department || f.section || "",
+                enrollmentNo: f.studentId || "",
+                dateOfBirth: f.dateOfBirth || "",
+                collegeName: f.collegeName || f.schoolName || "",
+                fullName: f.fullName || "",
+                academicYear: f.year || f.rollNo || "",
+                photo,
+                course: f.course || f.className || "",
+                validUntil: f.validUntil || "",
+              },
+            },
+          });
+        } else {
+          const idTypeMap: Record<string, string> = {
+            aadhaar: "Aadhaar",
+            pan: "PAN",
+            passport: "Passport",
+            driving: "Driving Licence",
+            voter: "Voter ID",
+          };
+          saveGuestCard({
+            id,
+            timestamp,
+            cardType: {
+              __kind__: "other",
+              other: {
+                fullName: f.fullName || "",
+                idType: idTypeMap[category] || category,
+                idNumber: getIdNumber(),
+                dateOfBirth: f.dateOfBirth || "",
+                issueDate:
+                  f.gender || f.nationality || f.vehicleClass || f.partNo || "",
+                expiryDate: f.expiryDate || f.validUntil || "",
+                issuedBy: f.address || f.fathersName || f.placeOfIssue || "",
+                photo,
+              },
+            },
+          });
+        }
+        setIsSavingGuest(false);
+        toast.success(isEditing ? "ID updated!" : "ID saved locally!");
+        navigate({ type: "home" });
+        return;
+      }
+
+      // Backend save
       if (category === "college" || category === "school") {
         const params = {
           id,
@@ -299,6 +375,7 @@ export default function AddCardPage({
       navigate({ type: "home" });
     } catch (err) {
       console.error(err);
+      setIsSavingGuest(false);
       toast.error("Failed to save ID. Please try again.");
     }
   };
@@ -361,11 +438,23 @@ export default function AddCardPage({
           style={{
             fontFamily: "'Orbitron', sans-serif",
             fontSize: "1rem",
-            color: "rgba(0,255,255,0.9)",
+            color: isGuest ? "rgba(255,180,0,0.9)" : "rgba(0,255,255,0.9)",
             margin: 0,
           }}
         >
           {isEditing ? "Edit ID Card" : "Add New ID"}
+          {isGuest && (
+            <span
+              style={{
+                fontSize: "0.65rem",
+                color: "rgba(255,180,0,0.6)",
+                marginLeft: "0.5rem",
+                fontFamily: "'Exo 2', sans-serif",
+              }}
+            >
+              (Guest)
+            </span>
+          )}
         </h2>
       </header>
 
@@ -377,7 +466,7 @@ export default function AddCardPage({
               display: "block",
               fontFamily: "'Orbitron', sans-serif",
               fontSize: "0.7rem",
-              color: "rgba(0,255,255,0.6)",
+              color: isGuest ? "rgba(255,180,0,0.6)" : "rgba(0,255,255,0.6)",
               marginBottom: "0.4rem",
               letterSpacing: "0.08em",
             }}
@@ -391,7 +480,9 @@ export default function AddCardPage({
             style={{
               width: "100%",
               background: "rgba(0,255,255,0.05)",
-              border: "1px solid rgba(0,255,255,0.3)",
+              border: isGuest
+                ? "1px solid rgba(255,180,0,0.3)"
+                : "1px solid rgba(0,255,255,0.3)",
               borderRadius: "10px",
               padding: "0.7rem 1rem",
               color: "rgba(255,255,255,0.9)",
@@ -404,7 +495,12 @@ export default function AddCardPage({
             }}
           >
             <span>{CATEGORY_LABELS[category]}</span>
-            <ChevronDown size={16} style={{ color: "rgba(0,255,255,0.5)" }} />
+            <ChevronDown
+              size={16}
+              style={{
+                color: isGuest ? "rgba(255,180,0,0.5)" : "rgba(0,255,255,0.5)",
+              }}
+            />
           </button>
           <AnimatePresence>
             {showCategoryMenu && (
@@ -465,7 +561,7 @@ export default function AddCardPage({
               display: "block",
               fontFamily: "'Orbitron', sans-serif",
               fontSize: "0.7rem",
-              color: "rgba(0,255,255,0.6)",
+              color: isGuest ? "rgba(255,180,0,0.6)" : "rgba(0,255,255,0.6)",
               marginBottom: "0.4rem",
               letterSpacing: "0.08em",
             }}
@@ -475,7 +571,9 @@ export default function AddCardPage({
           <button
             type="button"
             style={{
-              border: "1.5px dashed rgba(0,255,255,0.3)",
+              border: isGuest
+                ? "1.5px dashed rgba(255,180,0,0.3)"
+                : "1.5px dashed rgba(0,255,255,0.3)",
               borderRadius: "12px",
               overflow: "hidden",
               cursor: "pointer",
@@ -511,12 +609,21 @@ export default function AddCardPage({
                   padding: "1.5rem",
                 }}
               >
-                <Camera size={28} style={{ color: "rgba(0,255,255,0.4)" }} />
+                <Camera
+                  size={28}
+                  style={{
+                    color: isGuest
+                      ? "rgba(255,180,0,0.4)"
+                      : "rgba(0,255,255,0.4)",
+                  }}
+                />
                 <span
                   style={{
                     fontFamily: "'Exo 2', sans-serif",
                     fontSize: "0.8rem",
-                    color: "rgba(0,255,255,0.5)",
+                    color: isGuest
+                      ? "rgba(255,180,0,0.5)"
+                      : "rgba(0,255,255,0.5)",
                   }}
                 >
                   Tap to upload document photo
@@ -541,10 +648,12 @@ export default function AddCardPage({
               alignItems: "center",
               gap: "0.4rem",
               background: "transparent",
-              border: "1px solid rgba(0,255,255,0.2)",
+              border: isGuest
+                ? "1px solid rgba(255,180,0,0.2)"
+                : "1px solid rgba(0,255,255,0.2)",
               borderRadius: "8px",
               padding: "0.4rem 0.9rem",
-              color: "rgba(0,255,255,0.6)",
+              color: isGuest ? "rgba(255,180,0,0.6)" : "rgba(0,255,255,0.6)",
               fontSize: "0.78rem",
               fontFamily: "'Exo 2', sans-serif",
               cursor: "pointer",
@@ -573,7 +682,9 @@ export default function AddCardPage({
                     display: "block",
                     fontFamily: "'Orbitron', sans-serif",
                     fontSize: "0.68rem",
-                    color: "rgba(0,255,255,0.55)",
+                    color: isGuest
+                      ? "rgba(255,180,0,0.55)"
+                      : "rgba(0,255,255,0.55)",
                     marginBottom: "0.35rem",
                     letterSpacing: "0.07em",
                   }}
@@ -673,10 +784,13 @@ export default function AddCardPage({
               flex: 2,
               padding: "0.85rem",
               borderRadius: "10px",
-              border: "1.5px solid rgba(0,255,255,0.5)",
-              background:
-                "linear-gradient(135deg, rgba(0,255,255,0.12), rgba(0,100,180,0.12))",
-              color: "#00ffff",
+              border: isGuest
+                ? "1.5px solid rgba(255,180,0,0.5)"
+                : "1.5px solid rgba(0,255,255,0.5)",
+              background: isGuest
+                ? "linear-gradient(135deg, rgba(255,180,0,0.12), rgba(255,100,0,0.08))"
+                : "linear-gradient(135deg, rgba(0,255,255,0.12), rgba(0,100,180,0.12))",
+              color: isGuest ? "#ffb400" : "#00ffff",
               fontFamily: "'Orbitron', sans-serif",
               fontSize: "0.85rem",
               cursor: isSaving ? "not-allowed" : "pointer",
